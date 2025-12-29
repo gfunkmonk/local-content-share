@@ -149,6 +149,8 @@ proxy_connect_timeout 3600s;
 
 This configuration will set the maximum accept size for file transfer through NPM as 5 GB and will also disable buffering so interaction will take place directly with Local Content Share.
 
+You can also set path prefix using `--url_prefix_path` parameter if you want to run your instance on subpath of your domain (eg. my.lab.home/lcs/)
+
 ### Backend Data Structure
 
 The application creates a `data` directory to store all uploaded files, text snippets, notepad notes, and links (in `files/`, `text/`, `md.file`, and `links.file` respectively). File expirations are saved in an `expiration.json` file in the data directory. Make sure the application has write permissions for the directory where it runs.

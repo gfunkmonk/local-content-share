@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	texttemplate "text/template"
 	"io"
 	"io/fs"
 	"log"
@@ -168,6 +169,7 @@ func (t *ExpirationTracker) CleanupExpired() []string {
 }
 
 var listenAddress = flag.String("listen", ":8080", "host:port in which the server will listen")
+var url_prefix_path = flag.String("url_prefix_path", "", "prefix all urls, ex. /PREFIX for http://host:port/PREFIX/")
 
 // Placeholder content for notepad files
 const mdPlaceholder = `# Welcome to Markdown Notepad
@@ -258,6 +260,13 @@ func notifyContentChange() {
 func main() {
 	flag.Parse()
 
+	reg_url_path_prefix := regexp.MustCompile(`^/[^/]+[^/]$`)
+	if len(*url_prefix_path)>0 {
+		if(!reg_url_path_prefix.MatchString(*url_prefix_path)) {
+			log.Fatalf("Url prefix path must begin with '/' and must not end with '/'")
+		}
+	}
+
 	if err := os.MkdirAll(filepath.Join("data", "files"), 0755); err != nil {
 		log.Fatal(err)
 	}
@@ -297,8 +306,10 @@ func main() {
 	}()
 
 	tmpl := template.Must(template.ParseFS(content, "templates/*.html"))
+	tmplcss := texttemplate.Must(texttemplate.ParseFS(content, "static/css/inter.css"))
+	tmpljs := texttemplate.Must(texttemplate.ParseFS(content, "static/md.js"))
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/"), func(w http.ResponseWriter, r *http.Request) {
 		// Clean up expired files on page load
 		expirationTracker.CleanupExpired()
 		entries := []Entry{}
@@ -348,15 +359,26 @@ func main() {
 				})
 			}
 		}
-		tmpl.ExecuteTemplate(w, "index.html", entries)
+		type Template_data struct {
+			Entries []Entry
+			UrlPrefixPath string
+		}
+		template_data := &Template_data{entries, *url_prefix_path}
+		tmpl.ExecuteTemplate(w, "index.html", template_data)
 	})
 
-	http.HandleFunc("/md", func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "md.html", nil)
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/md"), func(w http.ResponseWriter, r *http.Request) {
+		viewData := struct {
+			UrlPrefixPath string
+		}{
+			UrlPrefixPath: *url_prefix_path,
+		}
+		tmpl.ExecuteTemplate(w, "md.html", viewData)
+
 	})
 
 	// Retrieve custom expiration options
-	http.HandleFunc("/getExpiryOptions", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/getExpiryOptions"), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(expirationOptions)
 	})
@@ -366,9 +388,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create static sub-filesystem: %v", err)
 	}
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
+	http.Handle(fmt.Sprintf("%s%s",*url_prefix_path,"/static/"), http.StripPrefix(fmt.Sprintf("%s%s",*url_prefix_path,"/static/"), http.FileServer(http.FS(staticFS))))
+
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/static/css/inter.css"), func(w http.ResponseWriter, r *http.Request) {
+		viewData := struct {
+			UrlPrefixPath string
+		}{
+			UrlPrefixPath: *url_prefix_path,
+		}
+		w.Header().Set("Content-Type", "text/css")
+		tmplcss.ExecuteTemplate(w, "inter.css", viewData)
+	})
+
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/style.css"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("style.css")
 		if err != nil {
 			http.Error(w, "Style not found", http.StatusNotFound)
@@ -379,7 +412,7 @@ func main() {
 		io.Copy(w, file)
 	})
 
-	http.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/manifest.json"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("manifest.json")
 		if err != nil {
 			http.Error(w, "Manifest not found", http.StatusNotFound)
@@ -390,7 +423,7 @@ func main() {
 		io.Copy(w, file)
 	})
 
-	http.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/sw.js"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("sw.js")
 		if err != nil {
 			http.Error(w, "Service worker not found", http.StatusNotFound)
@@ -401,19 +434,18 @@ func main() {
 		io.Copy(w, file)
 	})
 
-	http.HandleFunc("/md.js", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("md.js")
-		if err != nil {
-			http.Error(w, "JavaScript not found", http.StatusNotFound)
-			return
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/md.js"), func(w http.ResponseWriter, r *http.Request) {
+		viewData := struct {
+			UrlPrefixPath string
+		}{
+			UrlPrefixPath: *url_prefix_path,
 		}
-		defer file.Close()
 		w.Header().Set("Content-Type", "application/javascript")
-		io.Copy(w, file)
+		tmpljs.ExecuteTemplate(w, "md.js", viewData)
 	})
 
 	// Handle favicon and icons
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/favicon.ico"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("favicon.ico")
 		if err != nil {
 			http.Error(w, "Favicon not found", http.StatusNotFound)
@@ -424,7 +456,7 @@ func main() {
 		io.Copy(w, file)
 	})
 
-	http.HandleFunc("/icon-192.png", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/icon-192.png"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("icon-192.png")
 		if err != nil {
 			http.Error(w, "Icon not found", http.StatusNotFound)
@@ -435,7 +467,7 @@ func main() {
 		io.Copy(w, file)
 	})
 
-	http.HandleFunc("/icon-512.png", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/icon-512.png"), func(w http.ResponseWriter, r *http.Request) {
 		file, err := staticFS.Open("icon-512.png")
 		if err != nil {
 			http.Error(w, "Icon not found", http.StatusNotFound)
@@ -447,10 +479,10 @@ func main() {
 	})
 
 	// API endpoint to load notepad content
-	http.HandleFunc("/notepad/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/notepad/"), func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
-			filename := strings.TrimPrefix(r.URL.Path, "/notepad/")
+			filename := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/notepad/"))
 			if filename != "md.file" { // && filename != "rtext.file" {
 				http.Error(w, "Invalid notepad file", http.StatusBadRequest)
 				return
@@ -465,7 +497,7 @@ func main() {
 			w.Write(content)
 			return
 		case "POST":
-			filename := strings.TrimPrefix(r.URL.Path, "/notepad/")
+			filename := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/notepad/"))
 			if filename != "md.file" { // && filename != "rtext.file" {
 				http.Error(w, "Invalid notepad file", http.StatusBadRequest)
 				return
@@ -488,7 +520,7 @@ func main() {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
-	http.HandleFunc("/submit", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/submit"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -587,15 +619,15 @@ func main() {
 			w.Write([]byte("Success"))
 			return
 		}
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, fmt.Sprintf("%s%s",*url_prefix_path,"/"), http.StatusSeeOther)
 	})
 
-	http.HandleFunc("/rename/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/rename/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		oldPath := strings.TrimPrefix(r.URL.Path, "/rename/")
+		oldPath := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/rename/"))
 		newName := r.FormValue("newname")
 		if newName == "" {
 			http.Error(w, "New name cannot be empty", http.StatusBadRequest)
@@ -626,12 +658,12 @@ func main() {
 			return
 		}
 		notifyContentChange()
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, fmt.Sprintf("%s%s",*url_prefix_path,"/"), http.StatusSeeOther)
 		log.Printf("Renamed %s to %s\n", oldPath, newName)
 	})
 
-	http.HandleFunc("/raw/", func(w http.ResponseWriter, r *http.Request) {
-		id := strings.TrimPrefix(r.URL.Path, "/raw/")
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/raw/"), func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/raw/"))
 		if !strings.HasPrefix(id, "text/") {
 			http.Error(w, "Only text files can be accessed", http.StatusBadRequest)
 			return
@@ -646,8 +678,8 @@ func main() {
 		w.Write(content)
 	})
 
-	http.HandleFunc("/download/", func(w http.ResponseWriter, r *http.Request) {
-		filename := strings.TrimPrefix(r.URL.Path, "/download/")
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/download/"), func(w http.ResponseWriter, r *http.Request) {
+		filename := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/download/"))
 		filePath := filepath.Join("data", filename)
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
@@ -702,18 +734,18 @@ func main() {
 		log.Printf("Served %s for download\n", filename)
 	})
 
-	http.HandleFunc("/view/", func(w http.ResponseWriter, r *http.Request) {
-		filename := strings.TrimPrefix(r.URL.Path, "/view/")
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/view/"), func(w http.ResponseWriter, r *http.Request) {
+		filename := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/view/"))
 		http.ServeFile(w, r, filepath.Join("data", filename))
 		log.Printf("Served %s for viewing\n", filename)
 	})
 
-	http.HandleFunc("/delete/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/delete/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		id := strings.TrimPrefix(r.URL.Path, "/delete/")
+		id := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/delete/"))
 		// Handle link deletion
 		if after, ok := strings.CutPrefix(id, "link/"); ok {
 			linkToDelete := after
@@ -770,12 +802,12 @@ func main() {
 		log.Printf("Deleted %s\n", id)
 	})
 
-	http.HandleFunc("/edit/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/edit/"), func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		id := strings.TrimPrefix(r.URL.Path, "/edit/")
+		id := strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s%s",*url_prefix_path,"/edit/"))
 		if !strings.HasPrefix(id, "text/") {
 			http.Error(w, "Can only edit text snippets", http.StatusBadRequest)
 			return
@@ -791,12 +823,12 @@ func main() {
 			return
 		}
 		notifyContentChange()
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, fmt.Sprintf("%s%s",*url_prefix_path,"/"), http.StatusSeeOther)
 		log.Printf("Edited %s\n", id)
 	})
 
 	// SSE Updates for content refresh
-	http.HandleFunc("/api/updates", handleContentUpdates)
+	http.HandleFunc(fmt.Sprintf("%s%s",*url_prefix_path,"/api/updates"), handleContentUpdates)
 
 	// Start server
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))

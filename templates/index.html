@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Local Content Share</title>
-    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
-    <link href="/static/css/inter.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="stylesheet" href="{{ $.UrlPrefixPath }}/static/fontawesome/css/all.min.css">
+    <link href="{{ $.UrlPrefixPath }}/static/css/inter.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="{{ $.UrlPrefixPath }}/favicon.ico">
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#cba6f7"> <!-- mauve:dark -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="manifest" href="{{ $.UrlPrefixPath }}/manifest.json">
+    <link rel="apple-touch-icon" href="{{ $.UrlPrefixPath }}/icon-192.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ContentShare">
@@ -59,7 +59,7 @@
             });
         })();
     </script>
-    <script src="/static/js/tailwindcss.js"></script>
+    <script src="{{ $.UrlPrefixPath }}/static/js/tailwindcss.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -112,7 +112,7 @@
                         <i class="fas fa-pen-nib text-subtext0"></i>
                         <span class="font-medium text-sm text-subtext0">New</span>
                     </button>
-                    <a href="/md" class="flex items-center gap-2 px-4 py-2 bg-base hover:bg-surface0 rounded-xl transition-colors no-underline">
+                    <a href="{{ $.UrlPrefixPath }}/md" class="flex items-center gap-2 px-4 py-2 bg-base hover:bg-surface0 rounded-xl transition-colors no-underline">
                         <i class="fas fa-note-sticky text-subtext0"></i>
                         <span class="font-medium text-sm text-subtext0">Notepad</span>
                     </a>
@@ -123,7 +123,7 @@
             <section class="content-section">
                 <h2 class="text-2xl font-semibold mb-4 text-center text-text">Snippets</h2>
                 <div id="snippets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{range .}}{{if eq .Type "text"}}
+                    {{range .Entries}}{{if eq .Type "text"}}
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
                         <div class="font-medium truncate text-text mr-2">{{.Filename}}</div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
@@ -141,13 +141,13 @@
             <section class="content-section">
                 <h2 class="text-2xl font-semibold mb-4 text-center text-text">Files</h2>
                 <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{range .}}{{if eq .Type "file"}}
+                    {{range .Entries}}{{if eq .Type "file"}}
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300">
                         <div class="font-medium truncate text-text mr-2">{{.Filename}}</div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
-                            <a href="/download/{{.ID}}" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="Download"><i class="fas fa-download"></i></a>
-                            <a href="/view/{{.ID}}" target="_blank" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="View"><i class="fas fa-eye"></i></a>
+                            <a href="{{ $.UrlPrefixPath }}/download/{{.ID}}" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="Download"><i class="fas fa-download"></i></a>
+                            <a href="{{ $.UrlPrefixPath }}/view/{{.ID}}" target="_blank" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="View"><i class="fas fa-eye"></i></a>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -159,7 +159,7 @@
             <section class="content-section">
                 <h2 class="text-2xl font-semibold mb-4 text-center text-text">Links</h2>
                 <div id="links-list" class="flex flex-col gap-2">
-                    {{range .}}{{if eq .Type "link"}}
+                    {{range .Entries}}{{if eq .Type "link"}}
                     <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group">
                         <div class="flex items-center justify-between">
                             <div class="font-medium truncate text-text mr-2">{{.Content}}</div>
@@ -179,7 +179,7 @@
     <div id="new-item-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
         <div id="modal-backdrop" class="absolute inset-0"></div>
         <div class="bg-crust rounded-3xl p-4 w-full max-w-lg z-10">
-            <form id="new-item-form" action="/submit" method="POST" enctype="multipart/form-data">
+            <form id="new-item-form" action="{{ $.UrlPrefixPath }}/submit" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="expiry" id="expiryValue" value="Never">
                 <div class="mb-4">
                     <label for="file-upload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-surface0 border-dashed rounded-2xl cursor-pointer bg-base hover:bg-surface0 transition-all">
@@ -217,7 +217,7 @@
         <div id="link-modal-backdrop" class="absolute inset-0"></div>
         <div class="bg-crust rounded-3xl p-6 w-full max-w-md z-10">
             <h3 class="text-lg font-medium text-text mb-4">Add a new Link</h3>
-            <form id="new-link-form" action="/submit" method="POST" enctype="multipart/form-data">
+            <form id="new-link-form" action="{{ $.UrlPrefixPath }}/submit" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="type" value="link">
                 <input type="url" name="content" required placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
                 <div class="flex justify-end gap-4">
@@ -275,7 +275,7 @@
         // PWA Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('{{ $.UrlPrefixPath }}/sw.js')
                     .then(registration => {
                         console.log('ServiceWorker registration successful');
                     })
@@ -295,7 +295,7 @@
             const fileInput = document.getElementById('file-upload');
             const fileNameDisplay = document.getElementById('file-name-display');
             newItemModal.classList.add('hidden');
-            form.action = '/submit';
+            form.action = '{{ $.UrlPrefixPath }}/submit';
             form.reset();
             form.querySelector('[name="name"]').disabled = false;
             fileInput.parentElement.parentElement.style.display = 'block';
@@ -406,7 +406,7 @@
 
         // Fetch expiry options and reverse link order on load
         document.addEventListener('DOMContentLoaded', function() {
-            fetch('/getExpiryOptions').then(response => response.json()).then(options => {
+            fetch('{{ $.UrlPrefixPath }}/getExpiryOptions').then(response => response.json()).then(options => {
                 if (options && options.length > 0) {
                     expiryOptions = options;
                     expiryText.innerText = expiryOptions[0];
@@ -430,7 +430,7 @@
         const renameCancelButton = document.getElementById('rename-cancel-button');
         const renameModalBackdrop = document.getElementById('rename-modal-backdrop');
         function showRenameModal(id, currentName) {
-            renameForm.action = `/rename/${id}`;
+            renameForm.action = `{{ $.UrlPrefixPath }}/rename/${id}`;
             oldNameDisplay.textContent = currentName;
             newNameInput.value = currentName;
             renameModal.classList.remove('hidden');
@@ -448,10 +448,10 @@
 
         // Edit form logic
         async function showEditForm(id, filename) {
-            const response = await fetch(`/raw/${id}`);
+            const response = await fetch(`{{ $.UrlPrefixPath }}/raw/${id}`);
             const content = await response.text();
             const form = document.getElementById('new-item-form');
-            form.action = `/edit/${id}`;
+            form.action = `{{ $.UrlPrefixPath }}/edit/${id}`;
             form.querySelector('[name="name"]').value = filename;
             form.querySelector('[name="name"]').disabled = true; 
             form.querySelector('[name="content"]').value = content;
@@ -516,7 +516,7 @@
 
         function deleteItem(id) {
             showConfirmation(() => {
-                fetch(`/delete/${id}`, {
+                fetch(`{{ $.UrlPrefixPath }}/delete/${id}`, {
                     method: 'POST'
                 })
                 .then(response => {
@@ -542,7 +542,7 @@
         let contentToCopy = '';
         async function showViewModal(id, filename) {
             try {
-                const response = await fetch(`/raw/${id}`);
+                const response = await fetch(`{{ $.UrlPrefixPath }}/raw/${id}`);
                 if (!response.ok) throw new Error('Failed to fetch snippet content.');
                 
                 const content = await response.text();
@@ -605,7 +605,7 @@
             if (evtSource) {
                 evtSource.close();
             }
-            evtSource = new EventSource("/api/updates");
+            evtSource = new EventSource("{{ $.UrlPrefixPath }}/api/updates");
             evtSource.onmessage = function(event) {
                 if (event.data === "content_updated") {
                     const isModalOpen = document.querySelector('#new-item-modal:not(.hidden), #new-link-modal:not(.hidden), #rename-modal:not(.hidden), #view-snippet-modal:not(.hidden), #confirmation-modal:not(.hidden)');
