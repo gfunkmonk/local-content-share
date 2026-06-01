@@ -35,6 +35,8 @@ type Entry struct {
 	Content  string
 	Type     string
 	Filename string
+	Size     int64
+	ModTime  int64
 }
 
 type ExpirationTracker struct {
@@ -312,11 +314,20 @@ func main() {
 			if err != nil {
 				continue
 			}
+			info, _ := file.Info()
+			var size int64
+			var modTime int64
+			if info != nil {
+				size = info.Size()
+				modTime = info.ModTime().Unix()
+			}
 			entries = append(entries, Entry{
 				ID:       filepath.Join("text", file.Name()),
 				Type:     "text",
 				Content:  string(data),
 				Filename: file.Name(),
+				Size:     size,
+				ModTime:  modTime,
 			})
 		}
 		// Read files
@@ -325,10 +336,19 @@ func main() {
 			if file.IsDir() {
 				continue
 			}
+			info, _ := file.Info()
+			var size int64
+			var modTime int64
+			if info != nil {
+				size = info.Size()
+				modTime = info.ModTime().Unix()
+			}
 			entries = append(entries, Entry{
 				ID:       filepath.Join("files", file.Name()),
 				Type:     "file",
 				Filename: file.Name(),
+				Size:     size,
+				ModTime:  modTime,
 			})
 		}
 		// Read links
