@@ -121,10 +121,20 @@
 
             <!-- Snippets Section -->
             <section class="content-section">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-text">Snippets</h2>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h2 class="text-2xl font-semibold text-text">Snippets</h2>
+                    <div class="flex gap-2">
+                        <select data-sort-select data-section="snippets-list" class="bg-base text-subtext0 text-sm rounded-xl px-2 py-1 border-none focus:outline-none cursor-pointer">
+                            <option value="name">Name</option>
+                        </select>
+                        <button data-sort-order data-section="snippets-list" class="w-8 h-8 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors cursor-pointer" title="Toggle sort order">
+                            <i class="fas fa-arrow-down-a-z"></i>
+                        </button>
+                    </div>
+                </div>
                 <div id="snippets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "text"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" data-name="{{.Filename}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
                         <div class="font-medium truncate text-text mr-2">{{.Filename}}</div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
@@ -139,10 +149,20 @@
 
             <!-- Files Section -->
             <section class="content-section">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-text">Files</h2>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h2 class="text-2xl font-semibold text-text">Files</h2>
+                    <div class="flex gap-2">
+                        <select data-sort-select data-section="files-list" class="bg-base text-subtext0 text-sm rounded-xl px-2 py-1 border-none focus:outline-none cursor-pointer">
+                            <option value="name">Name</option>
+                        </select>
+                        <button data-sort-order data-section="files-list" class="w-8 h-8 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors cursor-pointer" title="Toggle sort order">
+                            <i class="fas fa-arrow-down-a-z"></i>
+                        </button>
+                    </div>
+                </div>
                 <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "file"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300">
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300" data-name="{{.Filename}}">
                         <div class="font-medium truncate text-text mr-2">{{.Filename}}</div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
@@ -157,10 +177,19 @@
 
             <!-- Links Section -->
             <section class="content-section">
-                <h2 class="text-2xl font-semibold mb-4 text-center text-text">Links</h2>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h2 class="text-2xl font-semibold text-text">Links</h2>
+                    <div class="flex gap-2">
+                        <select data-sort-select data-section="links-list" class="bg-base text-subtext0 text-sm rounded-xl px-2 py-1 border-none focus:outline-none cursor-pointer"> <option value="name">Name</option>
+                        </select>
+                        <button data-sort-order data-section="links-list" class="w-8 h-8 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors cursor-pointer" title="Toggle sort order">
+                            <i class="fas fa-arrow-down-a-z"></i>
+                        </button>
+                    </div>
+                </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
-                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group">
+                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group" data-name="{{.Content}}">
                         <div class="flex items-center justify-between">
                             <div class="font-medium truncate text-text mr-2">{{.Content}}</div>
                             <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
@@ -413,13 +442,9 @@
                     expiryValueInput.value = expiryOptions[0];
                 }
             }).catch(error => console.error('Error fetching expiry options:', error));
-            // Reverse the order so newest are on top
-            const linksList = document.getElementById('links-list');
-            if (linksList) {
-                const links = Array.from(linksList.children);
-                links.reverse();
-                links.forEach(link => linksList.appendChild(link));
-            }
+            // Apply default sort to all sections
+            // TODO: We might want to store the sorting preferences in localStorage
+            ['snippets-list', 'files-list', 'links-list'].forEach(sortSection);
         });
 
         // Rename Modal Logic
@@ -597,6 +622,45 @@
                 progressContainer.classList.add('hidden');
             };
             xhr.send(formData);
+        });
+
+        // Sort named sections by the selected filter and order.
+        // Assumes all sections have data-name attributes on their items for sorting by name.
+        function sortSection(sectionId) {
+            const container = document.getElementById(sectionId);
+            if (!container) return;
+            const select = document.querySelector(`[data-sort-select][data-section="${sectionId}"]`);
+            const orderBtn = document.querySelector(`[data-sort-order][data-section="${sectionId}"]`);
+
+            const items = Array.from(container.children);
+            const ascending = orderBtn.dataset.ascending !== 'false';
+            const sortBy = select.value;
+
+            items.sort((a, b) => {
+                let valA, valB;
+                if (sortBy === 'name') {
+                    valA = (a.dataset.name || '').toLowerCase();
+                    valB = (b.dataset.name || '').toLowerCase();
+                }
+                const cmp = valA < valB ? -1 : valA > valB ? 1 : 0;
+                return ascending ? cmp : -cmp;
+            });
+            items.forEach(item => container.appendChild(item));
+        }
+
+        document.querySelectorAll('[data-sort-select]').forEach(select => {
+            select.addEventListener('change', () => sortSection(select.dataset.section));
+        });
+
+        document.querySelectorAll('[data-sort-order]').forEach(btn => {
+            btn.dataset.ascending = 'true';
+            btn.addEventListener('click', () => {
+                const asc = btn.dataset.ascending !== 'false';
+                btn.dataset.ascending = !asc;
+                const icon = btn.querySelector('i');
+                icon.className = !asc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
+                sortSection(btn.dataset.section);
+            });
         });
 
         // SSE for live updates
