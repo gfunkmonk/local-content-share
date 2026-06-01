@@ -37,6 +37,7 @@ type Entry struct {
 	Filename string
 	Size     int64
 	ModTime  int64
+	Expiry   int64
 }
 
 type ExpirationTracker struct {
@@ -321,13 +322,21 @@ func main() {
 				size = info.Size()
 				modTime = info.ModTime().Unix()
 			}
+			entryID := filepath.Join("text", file.Name())
+			var expiry int64
+			expirationTracker.mu.Lock()
+			if t, ok := expirationTracker.Expirations[entryID]; ok {
+				expiry = t.Unix()
+			}
+			expirationTracker.mu.Unlock()
 			entries = append(entries, Entry{
-				ID:       filepath.Join("text", file.Name()),
+				ID:       entryID,
 				Type:     "text",
 				Content:  string(data),
 				Filename: file.Name(),
 				Size:     size,
 				ModTime:  modTime,
+				Expiry:   expiry,
 			})
 		}
 		// Read files
@@ -343,12 +352,20 @@ func main() {
 				size = info.Size()
 				modTime = info.ModTime().Unix()
 			}
+			entryID := filepath.Join("files", file.Name())
+			var expiry int64
+			expirationTracker.mu.Lock()
+			if t, ok := expirationTracker.Expirations[entryID]; ok {
+				expiry = t.Unix()
+			}
+			expirationTracker.mu.Unlock()
 			entries = append(entries, Entry{
-				ID:       filepath.Join("files", file.Name()),
+				ID:       entryID,
 				Type:     "file",
 				Filename: file.Name(),
 				Size:     size,
 				ModTime:  modTime,
+				Expiry:   expiry,
 			})
 		}
 		// Read links

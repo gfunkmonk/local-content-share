@@ -139,7 +139,7 @@
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
                         <div class="truncate mr-2">
                             <div class="font-medium text-text">{{.Filename}}</div>
-                            <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}"></div>
+                            <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
@@ -172,7 +172,7 @@
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}">
                         <div class="truncate mr-2">
                             <div class="font-medium text-text">{{.Filename}}</div>
-                            <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}"></div>
+                            <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
@@ -457,8 +457,10 @@
                 const parts = [];
                 const size = parseInt(el.dataset.size || '0', 10);
                 const date = parseInt(el.dataset.date || '0', 10);
+                const expiry = parseInt(el.dataset.expiry || '0', 10);
                 if (size) parts.push(formatSize(size));
                 if (date) parts.push(formatDate(date));
+                if (expiry) parts.push(formatExpiry(expiry));
                 el.textContent = parts.join(' · ');
             });
             // Apply default sort to all sections
@@ -663,6 +665,17 @@
             if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
             if (diff < 2592000) return Math.floor(diff / 86400) + 'd ago';
             return new Date(timestamp * 1000).toLocaleDateString();
+        }
+
+        // Format expiry timestamp to readable remaining time
+        function formatExpiry(timestamp) {
+            if (!timestamp || timestamp === 0) return '';
+            const now = Date.now() / 1000;
+            const diff = timestamp - now;
+            if (diff <= 0) return 'expired';
+            if (diff < 3600) return 'expires in ' + Math.ceil(diff / 60) + 'm';
+            if (diff < 86400) return 'expires in ' + Math.ceil(diff / 3600) + 'h';
+            return 'expires in ' + Math.ceil(diff / 86400) + 'd';
         }
 
         // Sort named sections by the selected filter and order.
