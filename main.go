@@ -819,8 +819,58 @@ func main() {
 		log.Printf("Edited %s\n", id)
 	})
 
-	// SSE Updates for content refresh
-	http.HandleFunc("/api/updates", handleContentUpdates)
+	// Edit a link — replaces the first occurrence of oldurl with newurl in links.file
+	http.HandleFunc("/edit-link/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		oldURL, err := url.PathUnescape(strings.TrimPrefix(r.URL.Path, "/edit-link/"))
+		if err != nil || oldURL == "" {
+			http.Error(w, "Invalid URL", http.StatusBadRequest)
+			return
+		}
+		newURL := r.FormValue("newurl")
+		if newURL == "" {
+			http.Error(w, "New URL cannot be empty", http.StatusBadRequest)
+			return
+		}
+		u, err := url.ParseRequestURI(newURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+			http.Error(w, "Invalid URL format. Must start with http:// or https://", http.StatusBadRequest)
+			return
+		}
+		linksFilePath := filepath.Join("data", "links.file")
+		data, err := os.ReadFile(linksFilePath)
+		if err != nil {
+			http.Error(w, "Failed to read links file", http.StatusInternalServerError)
+			return
+		}
+		lines := strings.Split(string(data), "\n")
+		var newLines []string
+		var found bool
+		for _, line := range lines {
+			if strings.TrimSpace(line) == strings.TrimSpace(oldURL) && !found {
+				newLines = append(newLines, newURL)
+				found = true
+			} else if strings.TrimSpace(line) != "" {
+				newLines = append(newLines, strings.TrimSpace(line))
+			}
+		}
+		if !found {
+			http.Error(w, "Link not found", http.StatusNotFound)
+			return
+		}
+		output := strings.Join(newLines, "\n") + "\n"
+		if err := os.WriteFile(linksFilePath, []byte(output), 0644); err != nil {
+			http.Error(w, "Failed to save links file", http.StatusInternalServerError)
+			return
+		}
+		notifyContentChange()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok"}`))
+		log.Printf("Edited link %s -> %s\n", oldURL, newURL)
+	})
 
 	// Reorder links
 	http.HandleFunc("/api/reorder-links", func(w http.ResponseWriter, r *http.Request) {

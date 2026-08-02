@@ -148,6 +148,7 @@
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
                             <button onclick="event.stopPropagation(); showEditForm('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -206,6 +207,7 @@
                         <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0 flex items-center gap-2"><i class="fas fa-globe text-subtext0 flex-shrink-0"></i>{{.Content}}</a>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -281,6 +283,20 @@
                     <button type="submit" class="px-4 py-2 bg-blue hover:bg-sapphire text-crust font-semibold rounded-xl transition-colors">Rename</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Edit Link Modal -->
+    <div id="edit-link-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
+        <div id="edit-link-modal-backdrop" class="absolute inset-0"></div>
+        <div class="bg-crust rounded-3xl p-6 w-full max-w-md z-10">
+            <h3 class="text-lg font-medium text-text mb-2">Edit Link</h3>
+            <p class="text-sm text-subtext1 mb-4">Current URL: <code id="edit-link-old-display" class="bg-base text-peach rounded-md px-1 py-0.5 break-all"></code></p>
+            <input type="url" id="edit-link-input" placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
+            <div class="flex justify-end gap-4">
+                <button type="button" id="edit-link-cancel" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Cancel</button>
+                <button type="button" id="edit-link-save" class="px-4 py-2 bg-blue hover:bg-sapphire text-crust font-semibold rounded-xl transition-colors">Save</button>
+            </div>
         </div>
     </div>
 
@@ -766,10 +782,62 @@
             if (!newLinkModal.classList.contains('hidden')) { newLinkModal.classList.add('hidden'); return; }
             if (!renameModal.classList.contains('hidden')) { renameModal.classList.add('hidden'); return; }
             if (!viewSnippetModal.classList.contains('hidden')) { viewSnippetModal.classList.add('hidden'); return; }
+            if (!editLinkModal.classList.contains('hidden')) { editLinkModal.classList.add('hidden'); return; }
             if (!confirmationModal.classList.contains('hidden')) {
                 confirmationModal.classList.add('hidden');
                 confirmCallback = null;
             }
+        });
+
+        // Edit Link Modal
+        const editLinkModal = document.getElementById('edit-link-modal');
+        const editLinkInput = document.getElementById('edit-link-input');
+        const editLinkOldDisplay = document.getElementById('edit-link-old-display');
+        const editLinkSave = document.getElementById('edit-link-save');
+        const editLinkCancel = document.getElementById('edit-link-cancel');
+        const editLinkBackdrop = document.getElementById('edit-link-modal-backdrop');
+        let editLinkOldURL = '';
+
+        function showEditLinkModal(url) {
+            editLinkOldURL = url;
+            editLinkOldDisplay.textContent = url;
+            editLinkInput.value = url;
+            editLinkModal.classList.remove('hidden');
+            editLinkInput.focus();
+            editLinkInput.select();
+        }
+
+        editLinkCancel.addEventListener('click', () => editLinkModal.classList.add('hidden'));
+        editLinkBackdrop.addEventListener('click', () => editLinkModal.classList.add('hidden'));
+
+        editLinkSave.addEventListener('click', () => {
+            const newURL = editLinkInput.value.trim();
+            if (!newURL) return;
+            const encoded = encodeURIComponent(editLinkOldURL);
+            const body = new URLSearchParams({ newurl: newURL });
+            fetch(`/edit-link/${encoded}`, { method: 'POST', body })
+                .then(r => {
+                    if (r.ok) {
+                        editLinkModal.classList.add('hidden');
+                        // Update the card in-place without a reload
+                        document.querySelectorAll('[data-url]').forEach(card => {
+                            if (card.dataset.url === editLinkOldURL) {
+                                card.dataset.url = newURL;
+                                card.dataset.name = newURL;
+                                card.dataset.entryId = 'link/' + encodeURIComponent(newURL);
+                                const a = card.querySelector('a[href]');
+                                if (a) { a.href = newURL; a.lastChild.textContent = newURL; }
+                            }
+                        });
+                    } else {
+                        r.text().then(t => alert('Error: ' + t));
+                    }
+                })
+                .catch(err => console.error('Failed to edit link:', err));
+        });
+
+        editLinkInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') editLinkSave.click();
         });
 
         // ── Drag-to-reorder links ────────────────────────────────────────────
