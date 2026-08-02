@@ -846,8 +846,21 @@ func main() {
 		currentName := filepath.Base(filePath)
 		if newName != "" && newName != currentName {
 			baseDir := filepath.Dir(filePath)
-			uniqueName := generateUniqueFilename(baseDir, newName)
-			newPath := filepath.Join(baseDir, uniqueName)
+			// Sanitize the new name the same way generateUniqueFilename would,
+			// then check for collision against other files (not the current file).
+			reg := regexp.MustCompile(`[/\\:*?"<>|\x00-\x1f]`)
+			sanitized := strings.TrimSpace(reg.ReplaceAllString(newName, "-"))
+			if sanitized == "" {
+				sanitized = currentName // fall back if sanitization empties the name
+			}
+			// Check if target already exists and is a different file
+			targetPath := filepath.Join(baseDir, sanitized)
+			if _, err := os.Stat(targetPath); err == nil {
+				// Collision with a different file — reject rather than mangle
+				http.Error(w, "A snippet with that name already exists", http.StatusConflict)
+				return
+			}
+			newPath := targetPath
 			// Transfer expiration to new name
 			expirationTracker.mu.Lock()
 			if expiry, ok := expirationTracker.Expirations[id]; ok {
@@ -862,7 +875,7 @@ func main() {
 				return
 			}
 			filePath = newPath
-			log.Printf("Renamed %s to %s during edit\n", id, uniqueName)
+			log.Printf("Renamed %s to %s during edit\n", id, sanitized)
 		}
 		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
