@@ -2,8 +2,8 @@
   <img src="assets/logo.svg" alt="Local Content Share Logo" width="200">
   <h1>Local Content Share</h1>
 
-  <a href="https://github.com/tanq16/local-content-share/actions/workflows/binary-build.yml"><img alt="Build Workflow" src="https://github.com/tanq16/local-content-share/actions/workflows/binary-build.yml/badge.svg"></a>&nbsp;<a href="https://github.com/tanq16/local-content-share/actions/workflows/docker-publish.yml"><img alt="Container Workflow" src="https://github.com/tanq16/local-content-share/actions/workflows/docker-publish.yml/badge.svg"></a><br>
-  <a href="https://github.com/Tanq16/local-content-share/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/tanq16/local-content-share"></a>&nbsp;<a href="https://hub.docker.com/r/tanq16/local-content-share"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/tanq16/local-content-share"></a><br><br>
+  <a href="https://github.com/gfunkmonk/local-content-share/actions/workflows/binary-build.yml"><img alt="Build Workflow" src="https://github.com/gfunkmonk/local-content-share/actions/workflows/binary-build.yml/badge.svg"></a>&nbsp;<a href="https://github.com/gfunkmonk/local-content-share/actions/workflows/docker-publish.yml"><img alt="Container Workflow" src="https://github.com/gfunkmonk/local-content-share/actions/workflows/docker-publish.yml/badge.svg"></a><br>
+  <a href="https://github.com/gfunkmonk/local-content-share/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/gfunkmonk/local-content-share"></a>&nbsp;<a href="https://hub.docker.com/r/gfunkmonk/local-content-share"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/gfunkmonk/local-content-share"></a><br><br>
   <a href="#screenshots">Screenshots</a> &bull; <a href="#installation-and-usage">Install & Use</a> &bull; <a href="#tips-and-notes">Tips & Notes</a>
 </div>
 
@@ -50,7 +50,7 @@ mkdir $HOME/.localcontentshare
 docker run --name local-content-share \
   -p 8080:8080 \
   -v $HOME/.localcontentshare:/app/data \
-  tanq16/local-content-share:main
+  gfunkmonk/local-content-share:main
 ```
 
 The application will be available at `http://localhost:8080` (or your server IP).
@@ -60,7 +60,7 @@ You can also use the following compose file with container managers like Portain
 ```yaml
 services:
   contentshare:
-    image: tanq16/local-content-share:main
+    image: gfunkmonk/local-content-share:main
     container_name: local-content-share
     volumes:
       - /home/tanq/lcshare:/app/data # Change as needed
@@ -70,7 +70,7 @@ services:
 
 ### Using Binary
 
-Download the appropriate binary for your system from the [latest release](https://github.com/tanq16/local-content-share/releases/latest).
+Download the appropriate binary for your system from the [latest release](https://github.com/gfunkmonk/local-content-share/releases/latest).
 
 Make the binary executable (for Linux/macOS) with `chmod +x local-content-share-*` and then run the binary with `./local-content-share-*`. The application will be available at `http://localhost:8080`.
 
@@ -79,13 +79,13 @@ Make the binary executable (for Linux/macOS) with `chmod +x local-content-share-
 With `Go 1.23+` installed, run the following to download the binary to your GOBIN:
 
 ```bash
-go install github.com/tanq16/local-content-share@latest
+go install github.com/gfunkmonk/local-content-share@latest
 ```
 
 Or, you can build from source like so:
 
 ```bash
-git clone https://github.com/tanq16/local-content-share.git && \
+git clone https://github.com/gfunkmonk/local-content-share.git && \
 cd local-content-share && \
 go build .
 ```
