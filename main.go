@@ -839,6 +839,29 @@ func main() {
 			http.Error(w, "Content cannot be empty", http.StatusBadRequest)
 			return
 		}
+		// Handle optional rename
+		newName := strings.TrimSpace(r.FormValue("name"))
+		currentName := filepath.Base(filePath)
+		if newName != "" && newName != currentName {
+			baseDir := filepath.Dir(filePath)
+			uniqueName := generateUniqueFilename(baseDir, newName)
+			newPath := filepath.Join(baseDir, uniqueName)
+			// Transfer expiration to new name
+			expirationTracker.mu.Lock()
+			if expiry, ok := expirationTracker.Expirations[id]; ok {
+				delete(expirationTracker.Expirations, id)
+				newID := filepath.ToSlash(strings.TrimPrefix(newPath, "data"+string(filepath.Separator)))
+				expirationTracker.Expirations[newID] = expiry
+			}
+			expirationTracker.mu.Unlock()
+			expirationTracker.saveToFile()
+			if err := os.Rename(filePath, newPath); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			filePath = newPath
+			log.Printf("Renamed %s to %s during edit\n", id, uniqueName)
+		}
 		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

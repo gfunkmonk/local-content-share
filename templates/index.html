@@ -152,7 +152,6 @@
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
-                            <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
                             <button onclick="event.stopPropagation(); showEditForm('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
@@ -575,12 +574,12 @@
         // Edit form logic
         async function showEditForm(id, filename) {
             const response = await fetch(`/raw/${id}`);
-            const content = await response.text();
+            const text = await response.text();
             const form = document.getElementById('new-item-form');
             form.action = `/edit/${id}`;
             form.querySelector('[name="name"]').value = filename;
-            form.querySelector('[name="name"]').disabled = true; 
-            form.querySelector('[name="content"]').value = content;
+            form.querySelector('[name="name"]').disabled = false;
+            form.querySelector('[name="content"]').value = text;
             form.querySelector('[name="file-upload"]').parentElement.parentElement.style.display = 'none';
             newItemModal.classList.remove('hidden');
         }
