@@ -136,7 +136,7 @@
                 </div>
                 <div id="snippets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "text"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
                         <div class="truncate mr-2">
                             <div class="font-medium text-text">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
@@ -169,7 +169,7 @@
                 </div>
                 <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "file"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}">
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}">
                         <div class="truncate mr-2">
                             <div class="font-medium text-text">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
@@ -199,7 +199,7 @@
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
-                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group" data-name="{{.Content}}">
+                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group" data-name="{{.Content}}" data-entry-id="{{.ID}}">
                         <div class="flex items-center justify-between">
                             <div class="font-medium truncate text-text mr-2">{{.Content}}</div>
                             <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
@@ -562,19 +562,17 @@
 
         function deleteItem(id) {
             showConfirmation(() => {
-                fetch(`/delete/${id}`, {
-                    method: 'POST'
-                })
+                fetch(`/delete/${id}`, { method: 'POST' })
                 .then(response => {
                     if (response.ok) {
-                        window.location.reload();
+                        // Remove matching cards by data-entry-id without a full reload
+                        document.querySelectorAll(`[data-entry-id="${CSS.escape(id)}"]`)
+                            .forEach(el => el.remove());
                     } else {
                         console.error('Failed to delete the item.');
                     }
                 })
-                .catch(error => {
-                    console.error('Error deleting item:', error);
-                });
+                .catch(error => console.error('Error deleting item:', error));
             }, 'Delete Item?', `Are you sure you want to delete this item? This action is permanent.`);
         }
 
@@ -706,22 +704,43 @@
                 return ascending ? cmp : -cmp;
             });
             items.forEach(item => container.appendChild(item));
+            // Persist preferences
+            localStorage.setItem('sort-' + sectionId + '-by', sortBy);
+            localStorage.setItem('sort-' + sectionId + '-asc', ascending);
         }
 
         document.querySelectorAll('[data-sort-select]').forEach(select => {
-            select.addEventListener('change', () => sortSection(select.dataset.section));
+            const sectionId = select.dataset.section;
+            const saved = localStorage.getItem('sort-' + sectionId + '-by');
+            if (saved) select.value = saved;
+            select.addEventListener('change', () => sortSection(sectionId));
         });
 
         document.querySelectorAll('[data-sort-order]').forEach(btn => {
-            btn.dataset.ascending = 'false';
-            btn.querySelector('i').className = 'fas fa-arrow-up-z-a';
+            const sectionId = btn.dataset.section;
+            const savedAsc = localStorage.getItem('sort-' + sectionId + '-asc');
+            const asc = savedAsc === null ? false : savedAsc === 'true';
+            btn.dataset.ascending = asc;
+            btn.querySelector('i').className = asc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
             btn.addEventListener('click', () => {
-                const asc = btn.dataset.ascending !== 'false';
-                btn.dataset.ascending = !asc;
-                const icon = btn.querySelector('i');
-                icon.className = !asc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
-                sortSection(btn.dataset.section);
+                const currentAsc = btn.dataset.ascending !== 'false';
+                btn.dataset.ascending = !currentAsc;
+                btn.querySelector('i').className = !currentAsc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
+                sortSection(sectionId);
             });
+        });
+
+        // Close any open modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (!newItemModal.classList.contains('hidden')) { closeAndResetNewItemModal(); return; }
+            if (!newLinkModal.classList.contains('hidden')) { newLinkModal.classList.add('hidden'); return; }
+            if (!renameModal.classList.contains('hidden')) { renameModal.classList.add('hidden'); return; }
+            if (!viewSnippetModal.classList.contains('hidden')) { viewSnippetModal.classList.add('hidden'); return; }
+            if (!confirmationModal.classList.contains('hidden')) {
+                confirmationModal.classList.add('hidden');
+                confirmCallback = null;
+            }
         });
 
         // SSE for live updates
@@ -746,7 +765,7 @@
             };
         }
 
-        // SSE connect aftwr page load
+        // SSE connect after page load
         window.addEventListener('load', function() {
             connectSSE();
         });

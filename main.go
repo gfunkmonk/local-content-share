@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log"
 	"math/rand"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,6 +31,24 @@ var (
 	clientMux sync.Mutex
 )
 
+// dataPath returns a filepath rooted at the "data" directory.
+// It rejects any path that would escape the data directory.
+func dataPath(parts ...string) (string, error) {
+	joined := filepath.Join(append([]string{"data"}, parts...)...)
+	abs, err := filepath.Abs(joined)
+	if err != nil {
+		return "", err
+	}
+	dataAbs, err := filepath.Abs("data")
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(abs, dataAbs+string(filepath.Separator)) && abs != dataAbs {
+		return "", fmt.Errorf("path %q escapes data directory", joined)
+	}
+	return joined, nil
+}
+
 type Entry struct {
 	ID       string
 	Content  string
@@ -42,7 +61,7 @@ type Entry struct {
 
 type ExpirationTracker struct {
 	Expirations map[string]time.Time `json:"expirations"`
-	mu          sync.Mutex           // mutex for thread safety
+	mu          sync.RWMutex
 }
 
 var expirationTracker *ExpirationTracker
@@ -71,7 +90,7 @@ func parseCustomDuration(customExpiry string) time.Duration {
 	// Regex to match the format like 1h, 30m, 2d, etc.
 	re := regexp.MustCompile(`^(\d+)([hmMdwy])$`)
 	matches := re.FindStringSubmatch(customExpiry)
-	if len(matches) < 2 { // bad value
+	if len(matches) < 3 { // bad value
 		return 5 * time.Minute
 	}
 	value, err := strconv.Atoi(matches[1])
@@ -102,7 +121,6 @@ func parseCustomDuration(customExpiry string) time.Duration {
 
 func (t *ExpirationTracker) SetExpiration(fileID, expiryOption string) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	if expiryOption == "Never" {
 		delete(t.Expirations, fileID)
 	} else {
@@ -116,22 +134,28 @@ func (t *ExpirationTracker) SetExpiration(fileID, expiryOption string) {
 			duration = 24 * time.Hour
 		case "Custom":
 			// Should not happen anymore.
+			t.mu.Unlock()
 			return
 		default:
 			if len(expiryOption) > 0 {
 				duration = parseCustomDuration(expiryOption)
 			} else {
 				delete(t.Expirations, fileID)
+				t.mu.Unlock()
+				t.saveToFile()
 				return
 			}
 		}
 		t.Expirations[fileID] = time.Now().Add(duration)
 	}
+	t.mu.Unlock()
 	t.saveToFile()
 }
 
 func (t *ExpirationTracker) saveToFile() {
+	t.mu.RLock()
 	data, err := json.MarshalIndent(t, "", "  ")
+	t.mu.RUnlock()
 	if err != nil {
 		log.Printf("Error marshaling expirations: %v", err)
 		return
@@ -144,7 +168,6 @@ func (t *ExpirationTracker) saveToFile() {
 
 func (t *ExpirationTracker) CleanupExpired() []string {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	now := time.Now()
 	var expiredFiles []string
 	// Find expired files
@@ -153,15 +176,20 @@ func (t *ExpirationTracker) CleanupExpired() []string {
 			expiredFiles = append(expiredFiles, fileID)
 		}
 	}
-	// Delete expired files
+	// Delete from tracker map while still holding the lock
 	for _, fileID := range expiredFiles {
-		err := os.Remove(filepath.Join("data", fileID))
-		if err != nil && !os.IsNotExist(err) {
+		delete(t.Expirations, fileID)
+	}
+	t.mu.Unlock()
+
+	// Remove files from disk (outside lock)
+	for _, fileID := range expiredFiles {
+		p := filepath.Join("data", fileID)
+		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			log.Printf("Error removing expired file %s: %v", fileID, err)
 		} else {
 			log.Printf("Removed expired file: %s", fileID)
 		}
-		delete(t.Expirations, fileID)
 	}
 	if len(expiredFiles) > 0 {
 		t.saveToFile()
@@ -324,11 +352,11 @@ func main() {
 			}
 			entryID := filepath.Join("text", file.Name())
 			var expiry int64
-			expirationTracker.mu.Lock()
+			expirationTracker.mu.RLock()
 			if t, ok := expirationTracker.Expirations[entryID]; ok {
 				expiry = t.Unix()
 			}
-			expirationTracker.mu.Unlock()
+			expirationTracker.mu.RUnlock()
 			entries = append(entries, Entry{
 				ID:       entryID,
 				Type:     "text",
@@ -354,11 +382,11 @@ func main() {
 			}
 			entryID := filepath.Join("files", file.Name())
 			var expiry int64
-			expirationTracker.mu.Lock()
+			expirationTracker.mu.RLock()
 			if t, ok := expirationTracker.Expirations[entryID]; ok {
 				expiry = t.Unix()
 			}
-			expirationTracker.mu.Unlock()
+			expirationTracker.mu.RUnlock()
 			entries = append(entries, Entry{
 				ID:       entryID,
 				Type:     "file",
@@ -405,115 +433,60 @@ func main() {
 	}
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
-	http.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("style.css")
-		if err != nil {
-			http.Error(w, "Style not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "text/css")
-		io.Copy(w, file)
-	})
-
-	http.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("manifest.json")
-		if err != nil {
-			http.Error(w, "Manifest not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/json")
-		io.Copy(w, file)
-	})
-
-	http.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("sw.js")
-		if err != nil {
-			http.Error(w, "Service worker not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/javascript")
-		io.Copy(w, file)
-	})
-
-	http.HandleFunc("/md.js", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("md.js")
-		if err != nil {
-			http.Error(w, "JavaScript not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "application/javascript")
-		io.Copy(w, file)
-	})
-
-	// Handle favicon and icons
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("favicon.ico")
-		if err != nil {
-			http.Error(w, "Favicon not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "image/x-icon")
-		io.Copy(w, file)
-	})
-
-	http.HandleFunc("/icon-192.png", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("icon-192.png")
-		if err != nil {
-			http.Error(w, "Icon not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "image/png")
-		io.Copy(w, file)
-	})
-
-	http.HandleFunc("/icon-512.png", func(w http.ResponseWriter, r *http.Request) {
-		file, err := staticFS.Open("icon-512.png")
-		if err != nil {
-			http.Error(w, "Icon not found", http.StatusNotFound)
-			return
-		}
-		defer file.Close()
-		w.Header().Set("Content-Type", "image/png")
-		io.Copy(w, file)
-	})
+	// staticMIMEs maps root-level static files to their content types.
+	staticMIMEs := map[string]string{
+		"style.css":    "text/css",
+		"manifest.json": "application/json",
+		"sw.js":        "application/javascript",
+		"md.js":        "application/javascript",
+		"favicon.ico":  "image/x-icon",
+		"icon-192.png": "image/png",
+		"icon-512.png": "image/png",
+	}
+	for name, ct := range staticMIMEs {
+		name, ct := name, ct // capture loop vars
+		http.HandleFunc("/"+name, func(w http.ResponseWriter, r *http.Request) {
+			f, err := staticFS.Open(name)
+			if err != nil {
+				http.Error(w, name+" not found", http.StatusNotFound)
+				return
+			}
+			defer f.Close()
+			w.Header().Set("Content-Type", ct)
+			io.Copy(w, f)
+		})
+	}
 
 	// API endpoint to load notepad content
 	http.HandleFunc("/notepad/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			filename := strings.TrimPrefix(r.URL.Path, "/notepad/")
-			if filename != "md.file" { // && filename != "rtext.file" {
+			if filename != "md.file" {
 				http.Error(w, "Invalid notepad file", http.StatusBadRequest)
 				return
 			}
-			content, err := os.ReadFile(filepath.Join("data", "notepad", filename))
+			data, err := os.ReadFile(filepath.Join("data", "notepad", filename))
 			if err != nil {
 				http.Error(w, "Error reading notepad file", http.StatusInternalServerError)
 				return
 			}
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
-			w.Write(content)
+			w.Write(data)
 			return
 		case "POST":
 			filename := strings.TrimPrefix(r.URL.Path, "/notepad/")
-			if filename != "md.file" { // && filename != "rtext.file" {
+			if filename != "md.file" {
 				http.Error(w, "Invalid notepad file", http.StatusBadRequest)
 				return
 			}
-			content, err := io.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				http.Error(w, "Error reading request body", http.StatusInternalServerError)
 				return
 			}
-			err = os.WriteFile(filepath.Join("data", "notepad", filename), content, 0644)
-			if err != nil {
+			if err = os.WriteFile(filepath.Join("data", "notepad", filename), body, 0644); err != nil {
 				http.Error(w, "Error saving notepad file", http.StatusInternalServerError)
 				return
 			}
@@ -536,15 +509,15 @@ func main() {
 		}
 		entryType := r.FormValue("type")
 		expiryOption := r.FormValue("expiry")
-		content := r.FormValue("content")
+		submitContent := r.FormValue("content")
 		name := r.FormValue("name")
 		if entryType == "link" {
 			// Handle link submission
-			if content == "" {
+			if submitContent == "" {
 				http.Error(w, "URL content cannot be empty", http.StatusBadRequest)
 				return
 			}
-			u, err := url.ParseRequestURI(content)
+			u, err := url.ParseRequestURI(submitContent)
 			if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 				http.Error(w, "Invalid URL format. Must start with http:// or https://", http.StatusBadRequest)
 				return
@@ -556,11 +529,11 @@ func main() {
 				return
 			}
 			defer f.Close()
-			if _, err := f.WriteString(content + "\n"); err != nil {
+			if _, err := f.WriteString(submitContent + "\n"); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			log.Printf("Saved link %s\n", content)
+			log.Printf("Saved link %s\n", submitContent)
 		} else {
 			// Handle file and text submission
 			files := r.MultipartForm.File["file-upload"]
@@ -598,15 +571,14 @@ func main() {
 						return
 					}
 				}
-			} else if content != "" {
+			} else if submitContent != "" {
 				// Text snippet submission
 				filename := name
 				if filename == "" {
 					filename = time.Now().Format("Jan-02 15-04-05")
 				}
 				uniqueFileName := generateUniqueFilename("data/text", filename)
-				err := os.WriteFile(filepath.Join("data/text", uniqueFileName), []byte(content), 0644)
-				if err != nil {
+				if err := os.WriteFile(filepath.Join("data/text", uniqueFileName), []byte(submitContent), 0644); err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
@@ -618,7 +590,7 @@ func main() {
 			}
 		}
 		notifyContentChange()
-		// Send succes for AJAX
+		// Send success for AJAX
 		if r.Header.Get("X-Requested-With") == "XMLHttpRequest" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Success"))
@@ -638,27 +610,32 @@ func main() {
 			http.Error(w, "New name cannot be empty", http.StatusBadRequest)
 			return
 		}
-		baseDir := filepath.Dir(filepath.Join("data", oldPath))
+		oldFullPath, err := dataPath(oldPath)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		baseDir := filepath.Dir(oldFullPath)
 		newName = generateUniqueFilename(baseDir, newName)
-
-		// Get the new full path
 		newPath := filepath.Join(baseDir, newName)
-		oldFullPath := filepath.Join("data", oldPath)
-		// Check if there's an expiration for this file
+
+		// Update expiration tracker entry atomically
 		expirationTracker.mu.Lock()
 		expiryTime, hasExpiry := expirationTracker.Expirations[oldPath]
 		if hasExpiry {
-			// Remove old entry and add new one
 			delete(expirationTracker.Expirations, oldPath)
-			relNewPath := strings.TrimPrefix(newPath, "data/")
-			relNewPath = strings.ReplaceAll(relNewPath, "\\", "/") // Ensure cross-platform path separators
+			dataAbs, _ := filepath.Abs("data")
+			newAbs, _ := filepath.Abs(newPath)
+			relNewPath := strings.TrimPrefix(newAbs, dataAbs+string(filepath.Separator))
+			relNewPath = filepath.ToSlash(relNewPath)
 			expirationTracker.Expirations[relNewPath] = expiryTime
-			expirationTracker.saveToFile()
 		}
 		expirationTracker.mu.Unlock()
-		// Rename the file
-		err := os.Rename(oldFullPath, newPath)
-		if err != nil {
+		if hasExpiry {
+			expirationTracker.saveToFile()
+		}
+
+		if err := os.Rename(oldFullPath, newPath); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -673,19 +650,28 @@ func main() {
 			http.Error(w, "Only text files can be accessed", http.StatusBadRequest)
 			return
 		}
-		content, err := os.ReadFile(filepath.Join("data", id))
+		filePath, err := dataPath(id)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		data, err := os.ReadFile(filePath)
 		if err != nil {
 			http.Error(w, "File not found", 404)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Write(content)
+		w.Write(data)
 	})
 
 	http.HandleFunc("/download/", func(w http.ResponseWriter, r *http.Request) {
 		filename := strings.TrimPrefix(r.URL.Path, "/download/")
-		filePath := filepath.Join("data", filename)
+		filePath, err := dataPath(filename)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
 		fileInfo, err := os.Stat(filePath)
 		if err != nil {
 			http.Error(w, "File not found", http.StatusNotFound)
@@ -698,50 +684,41 @@ func main() {
 		}
 		defer file.Close()
 
-		// Brute force method to determine content type
+		// Determine content type: try mime package first, then sniff
 		ext := strings.ToLower(filepath.Ext(filename))
-		var contentType string
-		switch ext {
-		case ".pdf":
-			contentType = "application/pdf"
-		case ".jpg", ".jpeg":
-			contentType = "image/jpeg"
-		case ".png":
-			contentType = "image/png"
-		case ".gif":
-			contentType = "image/gif"
-		case ".svg":
-			contentType = "image/svg+xml"
-		default:
+		contentType := mime.TypeByExtension(ext)
+		if contentType == "" {
 			buffer := make([]byte, 512)
-			_, err = file.Read(buffer)
+			n, err := file.Read(buffer)
 			if err != nil && err != io.EOF {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			contentType = http.DetectContentType(buffer)
-			_, err = file.Seek(0, 0)
-			if err != nil {
+			contentType = http.DetectContentType(buffer[:n])
+			if _, err = file.Seek(0, io.SeekStart); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
 		baseFilename := filepath.Base(filename)
 		w.Header().Set("Content-Type", contentType)
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", baseFilename))
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", baseFilename))
 		w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		_, err = io.Copy(w, file)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if _, err = io.Copy(w, file); err != nil {
+			log.Printf("Error serving download %s: %v", filename, err)
 		}
 		log.Printf("Served %s for download\n", filename)
 	})
 
 	http.HandleFunc("/view/", func(w http.ResponseWriter, r *http.Request) {
 		filename := strings.TrimPrefix(r.URL.Path, "/view/")
-		http.ServeFile(w, r, filepath.Join("data", filename))
+		filePath, err := dataPath(filename)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		http.ServeFile(w, r, filePath)
 		log.Printf("Served %s for viewing\n", filename)
 	})
 
@@ -790,16 +767,20 @@ func main() {
 			return
 		}
 		// Handle file and snippet deletion
-		err := os.Remove(filepath.Join("data", id))
+		filePath, err := dataPath(id)
 		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		if err := os.Remove(filePath); err != nil {
 			log.Printf("Failed to delete %s: %v", id, err)
 			http.Error(w, "Failed to delete file", http.StatusInternalServerError)
 			return
 		}
 		expirationTracker.mu.Lock()
 		delete(expirationTracker.Expirations, id)
-		expirationTracker.saveToFile()
 		expirationTracker.mu.Unlock()
+		expirationTracker.saveToFile()
 		notifyContentChange()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -817,13 +798,17 @@ func main() {
 			http.Error(w, "Can only edit text snippets", http.StatusBadRequest)
 			return
 		}
-		content := r.FormValue("content")
-		if content == "" {
+		filePath, err := dataPath(id)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		newContent := r.FormValue("content")
+		if newContent == "" {
 			http.Error(w, "Content cannot be empty", http.StatusBadRequest)
 			return
 		}
-		err := os.WriteFile(filepath.Join("data", id), []byte(content), 0644)
-		if err != nil {
+		if err := os.WriteFile(filePath, []byte(newContent), 0644); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
