@@ -63,49 +63,52 @@ jobs:
       matrix:
         include:
           # Linux
-          - { os: linux,   arch: amd64   }
-          - { os: linux,   arch: arm64   }
+          - { os: linux,   arch: amd64    }
+          - { os: linux,   arch: arm64    }
           - { os: linux,   arch: arm,    goarm: "6" }
           - { os: linux,   arch: arm,    goarm: "7" }
-          - { os: linux,   arch: 386     }
-          - { os: linux,   arch: riscv64 }
-          - { os: linux,   arch: loong64 }
-          - { os: linux,   arch: s390x   }          
-          - { os: linux,   arch: mips    }
-          - { os: linux,   arch: mipsel  }
-          - { os: linux,   arch: mips64  }
-          - { os: linux,   arch: mips64el }
-          - { os: linux,   arch: ppc64   }
-          - { os: linux,   arch: ppc64el } 
+          - { os: linux,   arch: 386      }
+          - { os: linux,   arch: riscv64  }
+          - { os: linux,   arch: loong64  }
+          - { os: linux,   arch: s390x    }          
+          - { os: linux,   arch: mips     }
+          - { os: linux,   arch: mipsle   }
+          - { os: linux,   arch: mips64   }
+          - { os: linux,   arch: mips64le }
+          - { os: linux,   arch: ppc64    }
+          - { os: linux,   arch: ppc64le  } 
+          - { os: linux,   arch: sparc64  } 
           # FreeBSD
-          - { os: freebsd, arch: amd64   }
-          - { os: freebsd, arch: 386     }			
-          - { os: freebsd, arch: arm64   }
+          - { os: freebsd, arch: amd64    }
+          - { os: freebsd, arch: 386      }			
+          - { os: freebsd, arch: arm64    }
           - { os: freebsd, arch: arm,    goarm: "6" }
           - { os: freebsd, arch: arm,    goarm: "7" }			
           # NetBSD
-          - { os: netbsd,  arch: amd64   }
-          - { os: netbsd,  arch: 386     }			
-          - { os: netbsd,  arch: arm64   }
+          - { os: netbsd,  arch: amd64    }
+          - { os: netbsd,  arch: 386      }			
+          - { os: netbsd,  arch: arm64    }
           - { os: netbsd,  arch: arm,    goarm: "6" }
           - { os: netbsd,  arch: arm,    goarm: "7" }			
           # OpenBSD
-          - { os: openbsd, arch: amd64   }
-          - { os: openbsd, arch: 386     }			
-          - { os: openbsd, arch: arm64   }
+          - { os: openbsd, arch: amd64    }
+          - { os: openbsd, arch: 386      }			
+          - { os: openbsd, arch: arm64    }
           - { os: openbsd, arch: arm,    goarm: "6" }
           - { os: openbsd, arch: arm,    goarm: "7" }			
           # illumos
-          - { os: illumos, arch: amd64   }
+          - { os: illumos, arch: amd64    }
+          # solaris
+          - { os: solaris, arch: amd64    }
           # macOS
-          - { os: darwin,  arch: amd64   }
-          - { os: darwin,  arch: arm64   }
+          - { os: darwin,  arch: amd64    }
+          - { os: darwin,  arch: arm64    }
           # Windows
-          - { os: windows, arch: amd64   }
-          - { os: windows, arch: arm64   }
+          - { os: windows, arch: amd64    }
+          - { os: windows, arch: arm64    }
           - { os: windows, arch: arm,    goarm: "6" }
           - { os: windows, arch: arm,    goarm: "7" }
-          - { os: windows, arch: 386     }
+          - { os: windows, arch: 386      }
     steps:
       - uses: actions/checkout@v7
 
