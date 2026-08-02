@@ -51,7 +51,7 @@ function setupEventListeners() {
 
 // Load notepad content from the backend
 function loadContent() {
-  fetch('/notepad/md.file')
+  fetch((window.__prefix||'') + '/notepad/md.file')
     .then(response => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -72,7 +72,7 @@ function loadContent() {
 function saveContent() {
   if (!isDirty) return; // Don't save if there are no changes
   const content = markdownEditor.value;
-  fetch('/notepad/md.file', {
+  fetch((window.__prefix||'') + '/notepad/md.file', {
     method: 'POST',
     body: content,
     headers: {
