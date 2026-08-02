@@ -198,13 +198,6 @@
             <section class="content-section">
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-2xl font-semibold text-text">Links</h2>
-                    <div class="flex gap-2">
-                        <select data-sort-select data-section="links-list" class="bg-base text-subtext0 text-sm rounded-xl px-2 py-1 border-none focus:outline-none cursor-pointer"> <option value="name">Name</option>
-                        </select>
-                        <button data-sort-order data-section="links-list" class="w-8 h-8 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors cursor-pointer" title="Toggle sort order">
-                            <i class="fas fa-arrow-up-z-a"></i>
-                        </button>
-                    </div>
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
@@ -473,7 +466,7 @@
             });
             // Apply default sort to all sections
             // TODO: We might want to store the sorting preferences in localStorage
-            ['snippets-list', 'files-list', 'links-list'].forEach(sortSection);
+            ['snippets-list', 'files-list'].forEach(sortSection);
         });
 
         // Rename Modal Logic
