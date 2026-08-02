@@ -203,7 +203,7 @@
                     {{range .}}{{if eq .Type "link"}}
                     <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group" data-name="{{.Content}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" draggable="true">
                         <span class="drag-handle cursor-grab active:cursor-grabbing text-overlay1 hover:text-subtext0 flex-shrink-0 px-1 touch-none select-none" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>
-                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0">{{.Content}}</a>
+                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0 flex items-center gap-2"><i class="fas fa-globe text-subtext0 flex-shrink-0"></i>{{.Content}}</a>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
