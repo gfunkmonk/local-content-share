@@ -77,7 +77,6 @@ jobs:
           - { os: linux,   arch: mips64le }
           - { os: linux,   arch: ppc64    }
           - { os: linux,   arch: ppc64le  } 
-          - { os: linux,   arch: sparc64  } 
           # FreeBSD
           - { os: freebsd, arch: amd64    }
           - { os: freebsd, arch: 386      }			
