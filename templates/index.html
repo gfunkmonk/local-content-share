@@ -738,6 +738,7 @@
             };
             xhr.onload = function() {
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    closeAndResetNewItemModal();
                     window.location.reload();
                 } else {
                     console.error('Upload failed:', xhr.statusText);
@@ -982,10 +983,14 @@
             evtSource = new EventSource("/api/updates");
             evtSource.onmessage = function(event) {
                 if (event.data === "content_updated") {
-                    const isModalOpen = document.querySelector('#new-item-modal:not(.hidden), #new-link-modal:not(.hidden), #rename-modal:not(.hidden), #view-snippet-modal:not(.hidden), #confirmation-modal:not(.hidden)');
-                    if (!isModalOpen) {
-                        setTimeout(() => { window.location.reload(); }, 250);
+                    // Only block reload if user has actively typed/selected something in the new item form
+                    const newItemOpen = !document.getElementById('new-item-modal').classList.contains('hidden');
+                    const newLinkOpen = !document.getElementById('new-link-modal').classList.contains('hidden');
+                    if ((newItemOpen && hasUnsavedContent()) || newLinkOpen) {
+                        // User is mid-entry — don't interrupt
+                        return;
                     }
+                    setTimeout(() => { window.location.reload(); }, 250);
                 }
             };
             evtSource.onerror = function() {
