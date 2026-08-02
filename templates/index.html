@@ -148,12 +148,20 @@
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
                             <button onclick="event.stopPropagation(); showEditForm('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
-                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     {{end}}{{end}}
+                    {{if not .}}
+                    {{end}}
                 </div>
+                {{$hasSnippets := false}}{{range .}}{{if eq .Type "text"}}{{$hasSnippets = true}}{{end}}{{end}}
+                {{if not $hasSnippets}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-pen-nib text-2xl"></i>
+                    <p class="text-sm">No snippets yet</p>
+                </div>
+                {{end}}
             </section>
 
             <!-- Files Section -->
@@ -193,6 +201,13 @@
                     </div>
                     {{end}}{{end}}
                 </div>
+                {{$hasFiles := false}}{{range .}}{{if eq .Type "file"}}{{$hasFiles = true}}{{end}}{{end}}
+                {{if not $hasFiles}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-folder-open text-2xl"></i>
+                    <p class="text-sm">No files yet</p>
+                </div>
+                {{end}}
             </section>
 
             <!-- Links Section -->
@@ -207,12 +222,18 @@
                         <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0 flex items-center gap-2"><i class="fas fa-globe text-subtext0 flex-shrink-0"></i>{{.Content}}</a>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
-                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     {{end}}{{end}}
                 </div>
+                {{$hasLinks := false}}{{range .}}{{if eq .Type "link"}}{{$hasLinks = true}}{{end}}{{end}}
+                {{if not $hasLinks}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-link text-2xl"></i>
+                    <p class="text-sm">No links yet</p>
+                </div>
+                {{end}}
             </section>
         </main>
     </div>
