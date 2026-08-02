@@ -221,11 +221,15 @@
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
-                    <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group" data-name="{{.Content}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" draggable="true">
+                    <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group" data-name="{{.Content}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" data-linkname="{{.LinkName}}" draggable="true">
                         <span class="drag-handle cursor-grab active:cursor-grabbing text-overlay1 hover:text-subtext0 flex-shrink-0 px-1 touch-none select-none" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>
-                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0 flex items-center gap-2"><i class="fas fa-globe text-subtext0 flex-shrink-0"></i>{{.Content}}</a>
+                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="no-underline flex-1 min-w-0 flex flex-col">
+                            <span class="font-medium truncate text-text flex items-center gap-2"><i class="fas fa-globe text-subtext0 flex-shrink-0 text-xs"></i>{{.LinkName}}</span>
+                            {{if ne .LinkName .Content}}<span class="text-xs text-overlay1 truncate pl-4">{{.Content}}</span>{{end}}
+                        </a>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}', '{{.LinkName}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
@@ -286,6 +290,7 @@
             <h3 class="text-lg font-medium text-text mb-4">Add a new Link</h3>
             <form id="new-link-form" action="/submit" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="type" value="link">
+                <input type="text" name="name" placeholder="Name (optional)" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-3">
                 <input type="url" name="content" required placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
                 <div class="flex justify-end gap-4">
                     <button type="button" id="link-cancel-button" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Cancel</button>
@@ -317,6 +322,7 @@
         <div class="bg-crust rounded-3xl p-6 w-full max-w-md z-10">
             <h3 class="text-lg font-medium text-text mb-2">Edit Link</h3>
             <p class="text-sm text-subtext1 mb-4">Current URL: <code id="edit-link-old-display" class="bg-base text-peach rounded-md px-1 py-0.5 break-all"></code></p>
+            <input type="text" id="edit-link-name-input" placeholder="Name (optional)" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-3">
             <input type="url" id="edit-link-input" placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
             <div class="flex justify-end gap-4">
                 <button type="button" id="edit-link-cancel" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Cancel</button>
@@ -823,13 +829,15 @@
         const editLinkBackdrop = document.getElementById('edit-link-modal-backdrop');
         let editLinkOldURL = '';
 
-        function showEditLinkModal(url) {
+        const editLinkNameInput = document.getElementById('edit-link-name-input');
+
+        function showEditLinkModal(url, name) {
             editLinkOldURL = url;
             editLinkOldDisplay.textContent = url;
             editLinkInput.value = url;
+            editLinkNameInput.value = (name && name !== url) ? name : '';
             editLinkModal.classList.remove('hidden');
-            editLinkInput.focus();
-            editLinkInput.select();
+            editLinkNameInput.focus();
         }
 
         editLinkCancel.addEventListener('click', () => editLinkModal.classList.add('hidden'));
@@ -837,21 +845,39 @@
 
         editLinkSave.addEventListener('click', () => {
             const newURL = editLinkInput.value.trim();
+            const newName = editLinkNameInput.value.trim();
             if (!newURL) return;
             const encoded = encodeURIComponent(editLinkOldURL);
-            const body = new URLSearchParams({ newurl: newURL });
+            const body = new URLSearchParams({ newurl: newURL, newname: newName });
             fetch(`/edit-link/${encoded}`, { method: 'POST', body })
                 .then(r => {
                     if (r.ok) {
                         editLinkModal.classList.add('hidden');
+                        const displayName = newName || newURL;
                         // Update the card in-place without a reload
                         document.querySelectorAll('[data-url]').forEach(card => {
                             if (card.dataset.url === editLinkOldURL) {
                                 card.dataset.url = newURL;
-                                card.dataset.name = newURL;
+                                card.dataset.linkname = displayName;
+                                card.dataset.name = displayName;
                                 card.dataset.entryId = 'link/' + encodeURIComponent(newURL);
                                 const a = card.querySelector('a[href]');
-                                if (a) { a.href = newURL; a.lastChild.textContent = newURL; }
+                                if (a) {
+                                    a.href = newURL;
+                                    const nameSpan = a.querySelector('span:first-child');
+                                    if (nameSpan) nameSpan.lastChild.textContent = displayName;
+                                    let urlSpan = a.querySelector('span:last-child');
+                                    if (displayName !== newURL) {
+                                        if (!urlSpan || urlSpan === nameSpan) {
+                                            urlSpan = document.createElement('span');
+                                            urlSpan.className = 'text-xs text-overlay1 truncate pl-4';
+                                            a.appendChild(urlSpan);
+                                        }
+                                        urlSpan.textContent = newURL;
+                                    } else if (urlSpan && urlSpan !== nameSpan) {
+                                        urlSpan.remove();
+                                    }
+                                }
                             }
                         });
                     } else {
@@ -921,12 +947,16 @@
 
                 target.classList.remove('ring-2', 'ring-mauve');
 
-                // Persist new order to backend
-                const urls = Array.from(list.querySelectorAll('[data-url]')).map(el => el.dataset.url);
+                // Persist new order to backend (send full "name|url" lines)
+                const lines = Array.from(list.querySelectorAll('[data-url]')).map(el => {
+                    const n = el.dataset.linkname;
+                    const u = el.dataset.url;
+                    return (n && n !== u) ? n + '|' + u : u;
+                });
                 fetch('/api/reorder-links', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(urls),
+                    body: JSON.stringify(lines),
                 }).catch(err => console.error('Failed to save link order:', err));
             });
         })();

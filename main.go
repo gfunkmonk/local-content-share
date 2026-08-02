@@ -59,6 +59,30 @@ type Entry struct {
 	Expiry   int64
 	IsImage  bool
 	FileIcon string
+	LinkName string
+}
+
+// parseLinkLine parses a "name|url" or bare "url" line from links.file.
+// Returns name and url. If no name is set, name equals the url.
+func parseLinkLine(line string) (name, rawURL string) {
+	if idx := strings.Index(line, "|"); idx != -1 {
+		name = strings.TrimSpace(line[:idx])
+		rawURL = strings.TrimSpace(line[idx+1:])
+	} else {
+		rawURL = strings.TrimSpace(line)
+		name = rawURL
+	}
+	return
+}
+
+// formatLinkLine serialises a name+url pair back to a links.file line.
+func formatLinkLine(name, rawURL string) string {
+	name = strings.TrimSpace(name)
+	rawURL = strings.TrimSpace(rawURL)
+	if name == "" || name == rawURL {
+		return rawURL
+	}
+	return name + "|" + rawURL
 }
 
 type ExpirationTracker struct {
@@ -409,11 +433,13 @@ func main() {
 				if line == "" {
 					continue
 				}
+				linkName, linkURL := parseLinkLine(line)
 				entries = append(entries, Entry{
-					ID:       "link/" + url.PathEscape(line),
+					ID:       "link/" + url.PathEscape(linkURL),
 					Type:     "link",
-					Content:  line,
-					Filename: line,
+					Content:  linkURL,
+					Filename: linkURL,
+					LinkName: linkName,
 				})
 			}
 		}
@@ -533,7 +559,8 @@ func main() {
 				return
 			}
 			defer f.Close()
-			if _, err := f.WriteString(submitContent + "\n"); err != nil {
+			linkLine := formatLinkLine(name, submitContent)
+			if _, err := f.WriteString(linkLine + "\n"); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -734,7 +761,7 @@ func main() {
 		id := strings.TrimPrefix(r.URL.Path, "/delete/")
 		// Handle link deletion
 		if after, ok := strings.CutPrefix(id, "link/"); ok {
-			linkToDelete := after
+			linkToDelete, _ := url.PathUnescape(after)
 			linksFilePath := filepath.Join("data", "links.file")
 			data, err := os.ReadFile(linksFilePath)
 			if err != nil {
@@ -745,7 +772,8 @@ func main() {
 			var newLines []string
 			var found bool
 			for _, line := range lines {
-				if strings.TrimSpace(line) == strings.TrimSpace(linkToDelete) && !found {
+				_, lineURL := parseLinkLine(line)
+				if lineURL == strings.TrimSpace(linkToDelete) && !found {
 					found = true // Remove only the first occurrence
 					continue
 				}
@@ -754,7 +782,6 @@ func main() {
 				}
 			}
 			output := strings.Join(newLines, "\n")
-			// Add newline for correctness
 			if output != "" {
 				output += "\n"
 			}
@@ -833,6 +860,7 @@ func main() {
 			return
 		}
 		newURL := r.FormValue("newurl")
+		newName := r.FormValue("newname")
 		if newURL == "" {
 			http.Error(w, "New URL cannot be empty", http.StatusBadRequest)
 			return
@@ -852,8 +880,9 @@ func main() {
 		var newLines []string
 		var found bool
 		for _, line := range lines {
-			if strings.TrimSpace(line) == strings.TrimSpace(oldURL) && !found {
-				newLines = append(newLines, newURL)
+			_, lineURL := parseLinkLine(line)
+			if lineURL == strings.TrimSpace(oldURL) && !found {
+				newLines = append(newLines, formatLinkLine(newName, newURL))
 				found = true
 			} else if strings.TrimSpace(line) != "" {
 				newLines = append(newLines, strings.TrimSpace(line))
@@ -871,7 +900,7 @@ func main() {
 		notifyContentChange()
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"ok"}`))
-		log.Printf("Edited link %s -> %s\n", oldURL, newURL)
+		log.Printf("Edited link %s -> %s (%s)\n", oldURL, newURL, newName)
 	})
 
 	// Reorder links
@@ -880,20 +909,21 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		var links []string
-		if err := json.NewDecoder(r.Body).Decode(&links); err != nil {
+		var lines []string
+		if err := json.NewDecoder(r.Body).Decode(&lines); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		// Validate each entry is a proper http/https URL
-		for _, l := range links {
-			u, err := url.ParseRequestURI(l)
+		// Validate each entry contains a proper http/https URL
+		for _, l := range lines {
+			_, rawURL := parseLinkLine(l)
+			u, err := url.ParseRequestURI(rawURL)
 			if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
-				http.Error(w, "Invalid URL in list: "+l, http.StatusBadRequest)
+				http.Error(w, "Invalid URL in list: "+rawURL, http.StatusBadRequest)
 				return
 			}
 		}
-		output := strings.Join(links, "\n")
+		output := strings.Join(lines, "\n")
 		if output != "" {
 			output += "\n"
 		}
