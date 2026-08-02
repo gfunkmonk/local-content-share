@@ -28,32 +28,27 @@ jobs:
 
       - name: Determine Version
         id: version
-        run: |
-          # Get the latest version tag, default to v0 if none exists
-          LATEST_TAG=$(gh release list -L 1 | cut -f 1 | sed 's/Release //' || echo "v0")
-          LATEST_TAG=${LATEST_TAG:-v0}
-          
-          # Extract current version numbers
-          VERSION=$(echo $LATEST_TAG | sed 's/v//')
-          
-          NEW_VERSION="v$((VERSION + 1))"
-          
-          echo "Previous version: $LATEST_TAG"
-          echo "New version: $NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST_TAG=$(gh release list -L 1 | cut -f 1 | sed 's/Release //' || echo "v0")
+          LATEST_TAG=${LATEST_TAG:-v0}
+          VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+          NEW_VERSION="v$((VERSION + 1))"
+          echo "Previous version: $LATEST_TAG"
+          echo "New version:      $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
-        if: ${{ inputs.delivery_type == 'Release' }}
+        if: inputs.delivery_type == 'Release'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.version.outputs.new_version }}" \
             --title "Release ${{ steps.version.outputs.new_version }}" \
             --draft \
             --notes "Local Content Share latest release binaries." \
-            --target ${{ github.sha }}
-        env:
-          GH_TOKEN: ${{ github.token }}
+            --target "${{ github.sha }}"
 
   build:
     needs: check-commit
@@ -63,51 +58,51 @@ jobs:
       matrix:
         include:
           # Linux
-          - { os: linux,   arch: amd64    }
-          - { os: linux,   arch: arm64    }
-          - { os: linux,   arch: arm,    goarm: "6" }
-          - { os: linux,   arch: arm,    goarm: "7" }
-          - { os: linux,   arch: 386      }
-          - { os: linux,   arch: riscv64  }
-          - { os: linux,   arch: loong64  }
-          - { os: linux,   arch: s390x    }          
-          - { os: linux,   arch: mips     }
-          - { os: linux,   arch: mipsle   }
-          - { os: linux,   arch: mips64   }
-          - { os: linux,   arch: mips64le }
-          - { os: linux,   arch: ppc64    }
-          - { os: linux,   arch: ppc64le  } 
-          # FreeBSD
-          - { os: freebsd, arch: amd64    }
-          - { os: freebsd, arch: 386      }			
-          - { os: freebsd, arch: arm64    }
-          - { os: freebsd, arch: arm,    goarm: "6" }
-          - { os: freebsd, arch: arm,    goarm: "7" }			
-          # NetBSD
-          - { os: netbsd,  arch: amd64    }
-          - { os: netbsd,  arch: 386      }			
-          - { os: netbsd,  arch: arm64    }
-          - { os: netbsd,  arch: arm,    goarm: "6" }
-          - { os: netbsd,  arch: arm,    goarm: "7" }			
-          # OpenBSD
-          - { os: openbsd, arch: amd64    }
-          - { os: openbsd, arch: 386      }			
-          - { os: openbsd, arch: arm64    }
-          - { os: openbsd, arch: arm,    goarm: "6" }
-          - { os: openbsd, arch: arm,    goarm: "7" }			
-          # illumos
-          - { os: illumos, arch: amd64    }
-          # solaris
-          - { os: solaris, arch: amd64    }
+          - { os: linux,   arch: amd64                }
+          - { os: linux,   arch: arm64                }
+          - { os: linux,   arch: arm,    goarm: "6"   }
+          - { os: linux,   arch: arm,    goarm: "7"   }
+          - { os: linux,   arch: 386                  }
+          - { os: linux,   arch: riscv64              }
+          - { os: linux,   arch: loong64              }
+          - { os: linux,   arch: s390x                }
+          - { os: linux,   arch: mips                 }
+          - { os: linux,   arch: mipsle               }
+          - { os: linux,   arch: mips64               }
+          - { os: linux,   arch: mips64le             }
+          - { os: linux,   arch: ppc64                }
+          - { os: linux,   arch: ppc64le              }
           # macOS
-          - { os: darwin,  arch: amd64    }
-          - { os: darwin,  arch: arm64    }
+          - { os: darwin,  arch: amd64                }
+          - { os: darwin,  arch: arm64                }
           # Windows
-          - { os: windows, arch: amd64    }
-          - { os: windows, arch: arm64    }
-          - { os: windows, arch: arm,    goarm: "6" }
-          - { os: windows, arch: arm,    goarm: "7" }
-          - { os: windows, arch: 386      }
+          - { os: windows, arch: amd64                }
+          - { os: windows, arch: arm64                }
+          - { os: windows, arch: arm,    goarm: "6"   }
+          - { os: windows, arch: arm,    goarm: "7"   }
+          - { os: windows, arch: 386                  }
+          # FreeBSD
+          - { os: freebsd, arch: amd64                }
+          - { os: freebsd, arch: arm64                }
+          - { os: freebsd, arch: arm,    goarm: "6"   }
+          - { os: freebsd, arch: arm,    goarm: "7"   }
+          - { os: freebsd, arch: 386                  }
+          # NetBSD
+          - { os: netbsd,  arch: amd64                }
+          - { os: netbsd,  arch: arm64                }
+          - { os: netbsd,  arch: arm,    goarm: "6"   }
+          - { os: netbsd,  arch: arm,    goarm: "7"   }
+          - { os: netbsd,  arch: 386                  }
+          # OpenBSD
+          - { os: openbsd, arch: amd64                }
+          - { os: openbsd, arch: arm64                }
+          - { os: openbsd, arch: arm,    goarm: "6"   }
+          - { os: openbsd, arch: arm,    goarm: "7"   }
+          - { os: openbsd, arch: 386                  }
+          # illumos / Solaris
+          - { os: illumos, arch: amd64                }
+          - { os: solaris, arch: amd64                }
+
     steps:
       - uses: actions/checkout@v7
 
@@ -131,19 +126,19 @@ jobs:
           BINARY_NAME="local-content-share-${{ matrix.os }}-${{ matrix.arch }}${ARM_SUFFIX}${EXT}"
 
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} GOARM=${{ matrix.goarm }} \
-            go build -ldflags="-s -w" -o "$BINARY_NAME"
+            go build -ldflags="-s -w" -trimpath -o "$BINARY_NAME"
 
           echo "BINARY_NAME=$BINARY_NAME" >> "$GITHUB_ENV"
 
       - name: Upload Release Asset
-        if: ${{ inputs.delivery_type == 'Release' }}
-        run: |
-          gh release upload "${{ needs.check-commit.outputs.version }}" "$BINARY_NAME"
+        if: inputs.delivery_type == 'Release'
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ needs.check-commit.outputs.version }}" "${{ env.BINARY_NAME }}"
 
       - name: Upload Artifact
-        if: ${{ inputs.delivery_type == 'Artifact' }}
+        if: inputs.delivery_type == 'Artifact'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BINARY_NAME }}
@@ -151,13 +146,13 @@ jobs:
 
   publish:
     needs: [check-commit, build]
-    if: ${{ inputs.delivery_type == 'Release' }}
+    if: inputs.delivery_type == 'Release'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
       - name: Publish Release
-        run: |
-          gh release edit "${{ needs.check-commit.outputs.version }}" --draft=false
         env:
           GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "${{ needs.check-commit.outputs.version }}" --draft=false
