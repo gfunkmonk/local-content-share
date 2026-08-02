@@ -57,6 +57,7 @@ type Entry struct {
 	Size     int64
 	ModTime  int64
 	Expiry   int64
+	IsImage  bool
 }
 
 type ExpirationTracker struct {
@@ -394,6 +395,7 @@ func main() {
 				Size:     size,
 				ModTime:  modTime,
 				Expiry:   expiry,
+				IsImage:  isImageFile(file.Name()),
 			})
 		}
 		// Read links
@@ -824,7 +826,14 @@ func main() {
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
 
-// Helper function to create files if they don't exist
+// isImageFile returns true for common web-displayable image extensions.
+func isImageFile(filename string) bool {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg", ".bmp", ".ico":
+		return true
+	}
+	return false
+}
 func createFileIfNotExists(filename string, defaultContent string) {
 	dir := filepath.Dir(filepath.Join("data", filename))
 	if dir != "." && dir != "data" {
