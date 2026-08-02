@@ -27,4 +27,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: tanq16/local-content-share:main
+          tags: gfunkmonk/local-content-share:main
