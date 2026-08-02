@@ -186,6 +186,10 @@
                         <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="{{.Filename}}">
                             <img src="/view/{{.ID}}" alt="{{.Filename}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" loading="lazy">
                         </a>
+                        {{else}}
+                        <div class="flex-shrink-0 mr-3 w-10 h-10 flex items-center justify-center rounded-xl bg-surface0 text-subtext0">
+                            <i class="fas {{.FileIcon}}"></i>
+                        </div>
                         {{end}}
                         <div class="truncate mr-2 flex-1">
                             <div class="font-medium text-text">{{.Filename}}</div>

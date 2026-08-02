@@ -58,6 +58,7 @@ type Entry struct {
 	ModTime  int64
 	Expiry   int64
 	IsImage  bool
+	FileIcon string
 }
 
 type ExpirationTracker struct {
@@ -396,6 +397,7 @@ func main() {
 				ModTime:  modTime,
 				Expiry:   expiry,
 				IsImage:  isImageFile(file.Name()),
+				FileIcon: fileIcon(file.Name()),
 			})
 		}
 		// Read links
@@ -916,6 +918,47 @@ func isImageFile(filename string) bool {
 		return true
 	}
 	return false
+}
+
+// fileIcon returns a FontAwesome icon class for a given filename extension.
+func fileIcon(filename string) string {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	// Images (fallback for non-previewable)
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg", ".bmp", ".ico":
+		return "fa-file-image"
+	// Documents
+	case ".pdf":
+		return "fa-file-pdf"
+	case ".doc", ".docx":
+		return "fa-file-word"
+	case ".xls", ".xlsx":
+		return "fa-file-excel"
+	case ".ppt", ".pptx":
+		return "fa-file-powerpoint"
+	// Archives
+	case ".zip", ".tar", ".gz", ".bz2", ".xz", ".7z", ".rar":
+		return "fa-file-zipper"
+	// Code / text
+	case ".go", ".py", ".js", ".ts", ".rb", ".rs", ".c", ".cpp", ".h",
+		".java", ".kt", ".swift", ".php", ".cs", ".sh", ".bash", ".ps1",
+		".html", ".htm", ".css", ".scss", ".json", ".yaml", ".yml",
+		".toml", ".xml", ".sql", ".md", ".dockerfile":
+		return "fa-file-code"
+	// Plain text
+	case ".txt", ".log", ".csv", ".ini", ".conf", ".env":
+		return "fa-file-lines"
+	// Audio
+	case ".mp3", ".wav", ".flac", ".ogg", ".aac", ".m4a":
+		return "fa-file-audio"
+	// Video
+	case ".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv":
+		return "fa-file-video"
+	// Font
+	case ".ttf", ".otf", ".woff", ".woff2":
+		return "fa-file-alt"
+	default:
+		return "fa-file"
+	}
 }
 func createFileIfNotExists(filename string, defaultContent string) {
 	dir := filepath.Dir(filepath.Join("data", filename))
