@@ -2,6 +2,15 @@ name: Build Binary
 
 on:
   workflow_dispatch:
+    inputs:
+      delivery_type:
+        description: 'Choose build output target'
+        required: true
+        default: 'Artifact'
+        type: choice
+        options:
+          - 'Artifact'
+          - 'Release'
 
 permissions:
   contents: write
@@ -36,6 +45,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
       - name: Create Release
+        if: ${{ inputs.delivery_type == 'Release' }}
         run: |
           gh release create "${{ steps.version.outputs.new_version }}" \
             --title "Release ${{ steps.version.outputs.new_version }}" \
@@ -52,18 +62,49 @@ jobs:
       matrix:
         include:
           # Linux
-          - { os: linux,   arch: amd64 }
-          - { os: linux,   arch: arm64 }
-          - { os: linux,   arch: arm   }
-          - { os: linux,   arch: 386   }
+          - { os: linux,   arch: amd64   }
+          - { os: linux,   arch: arm64   }
+          - { os: linux,   arch: arm,    goarm: "6" }
+          - { os: linux,   arch: arm,    goarm: "7" }
+          - { os: linux,   arch: 386     }
+          - { os: linux,   arch: riscv64 }
+          - { os: linux,   arch: loong64 }
+          - { os: linux,   arch: s390x   }          
+          - { os: linux,   arch: mips    }
+          - { os: linux,   arch: mipsel  }
+          - { os: linux,   arch: mips64  }
+          - { os: linux,   arch: mips64el }
+          - { os: linux,   arch: ppc64   }
+          - { os: linux,   arch: ppc64el } 
+          # FreeBSD
+          - { os: freebsd, arch: amd64   }
+          - { os: freebsd, arch: i386    }			
+          - { os: freebsd, arch: arm64   }
+          - { os: freebsd, arch: arm,    goarm: "6" }
+          - { os: freebsd, arch: arm,    goarm: "7" }			
+          # NetBSD
+          - { os: netbsd,  arch: amd64   }
+          - { os: netbsd,  arch: i386    }			
+          - { os: netbsd,  arch: arm64   }
+          - { os: netbsd,  arch: arm,    goarm: "6" }
+          - { os: netbsd,  arch: arm,    goarm: "7" }			
+          # OpenBSD
+          - { os: openbsd, arch: amd64   }
+          - { os: openbsd, arch: i386    }			
+          - { os: openbsd, arch: arm64   }
+          - { os: openbsd, arch: arm,    goarm: "6" }
+          - { os: openbsd, arch: arm,    goarm: "7" }			
+          # illumos
+          - { os: illumos, arch: amd64   }
           # macOS
-          - { os: darwin,  arch: amd64 }
-          - { os: darwin,  arch: arm64 }
+          - { os: darwin,  arch: amd64   }
+          - { os: darwin,  arch: arm64   }
           # Windows
-          - { os: windows, arch: amd64 }
-          - { os: windows, arch: arm64 }
-          - { os: windows, arch: arm   }
-          - { os: windows, arch: 386   }
+          - { os: windows, arch: amd64   }
+          - { os: windows, arch: arm64   }
+          - { os: windows, arch: arm,    goarm: "6" }
+          - { os: windows, arch: arm,    goarm: "7" }
+          - { os: windows, arch: 386     }
     steps:
       - uses: actions/checkout@v7
 
@@ -74,17 +115,40 @@ jobs:
 
       - name: Build Binary
         run: |
-          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} go build -ldflags="-s -w" -o local-content-share-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}
+          ARM_SUFFIX=""
+          if [ -n "${{ matrix.goarm }}" ]; then
+            ARM_SUFFIX="v${{ matrix.goarm }}"
+          fi
+
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+
+          BINARY_NAME="local-content-share-${{ matrix.os }}-${{ matrix.arch }}${ARM_SUFFIX}${EXT}"
+
+          GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} GOARM=${{ matrix.goarm }} \
+            go build -ldflags="-s -w" -o "$BINARY_NAME"
+
+          echo "BINARY_NAME=$BINARY_NAME" >> "$GITHUB_ENV"
 
       - name: Upload Release Asset
+        if: ${{ inputs.delivery_type == 'Release' }}
         run: |
-          gh release upload "${{ needs.check-commit.outputs.version }}" \
-            "local-content-share-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.os == 'windows' && '.exe' || '' }}"
+          gh release upload "${{ needs.check-commit.outputs.version }}" "$BINARY_NAME"
         env:
           GH_TOKEN: ${{ github.token }}
 
+      - name: Upload Artifact
+        if: ${{ inputs.delivery_type == 'Artifact' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.BINARY_NAME }}
+          path: ${{ env.BINARY_NAME }}
+
   publish:
     needs: [check-commit, build]
+    if: ${{ inputs.delivery_type == 'Release' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
