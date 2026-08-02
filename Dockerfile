@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 # Build the application
-RUN go build -ldflags="-s -w" -o local-content-share .
+RUN go build -ldflags="-s -w" -trimpath -o local-content-share .
 
 # Use a minimal alpine image for running
 FROM alpine:latest
