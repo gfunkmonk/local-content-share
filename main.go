@@ -247,8 +247,10 @@ function example() {
 
 func generateUniqueFilename(baseDir, baseName string) string {
 	baseName = strings.TrimSpace(baseName)
-	// Sanitize: allow only letters (+unicode), numbers, space, dot, hyphen, underscore, () and []
-	reg := regexp.MustCompile(`[^\p{L}\p{N}\p{M}\s\.\-_()\[\]]`)
+	// Sanitize: strip only characters that are illegal in filenames across
+	// Windows/macOS/Linux: / \ : * ? " < > | and control characters.
+	// Everything else (!, @, #, $, %, ^, &, +, =, ~, etc.) is allowed.
+	reg := regexp.MustCompile(`[/\\:*?"<>|\x00-\x1f]`)
 	sanitizedName := reg.ReplaceAllString(baseName, "-")
 	log.Printf("Sanitized name %s TO %s\n", baseName, sanitizedName)
 	// First try without random prefix
