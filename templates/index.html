@@ -397,8 +397,28 @@
         const cancelButton = document.getElementById('cancel-button');
         const modalBackdrop = document.getElementById('modal-backdrop');
         newButton.addEventListener('click', () => newItemModal.classList.remove('hidden'));
-        cancelButton.addEventListener('click', closeAndResetNewItemModal);
-        modalBackdrop.addEventListener('click', closeAndResetNewItemModal);
+
+        function hasUnsavedContent() {
+            const textarea = document.querySelector('#new-item-form [name="content"]');
+            const fileInput = document.getElementById('file-upload');
+            return (textarea && textarea.value.trim() !== '') ||
+                   (fileInput && fileInput.files.length > 0);
+        }
+
+        function maybeCloseNewItemModal() {
+            if (hasUnsavedContent()) {
+                showConfirmation(
+                    closeAndResetNewItemModal,
+                    'Discard changes?',
+                    'You have unsaved content. Close anyway?'
+                );
+            } else {
+                closeAndResetNewItemModal();
+            }
+        }
+
+        cancelButton.addEventListener('click', maybeCloseNewItemModal);
+        modalBackdrop.addEventListener('click', maybeCloseNewItemModal);
 
         // Modal handling for New Link
         const newLinkButton = document.getElementById('new-link-button');
@@ -809,7 +829,7 @@
         // Close any open modal on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
-            if (!newItemModal.classList.contains('hidden')) { closeAndResetNewItemModal(); return; }
+            if (!newItemModal.classList.contains('hidden')) { maybeCloseNewItemModal(); return; }
             if (!newLinkModal.classList.contains('hidden')) { newLinkModal.classList.add('hidden'); return; }
             if (!renameModal.classList.contains('hidden')) { renameModal.classList.add('hidden'); return; }
             if (!viewSnippetModal.classList.contains('hidden')) { viewSnippetModal.classList.add('hidden'); return; }
