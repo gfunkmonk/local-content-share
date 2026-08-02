@@ -95,11 +95,11 @@
             font-family: 'Inter', sans-serif;
         }
         @keyframes card-in {
-            from { opacity: 0; transform: translateY(4px); }
+            from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
         .card-animate {
-            animation: card-in 0.15s ease-out both;
+            animation: card-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
         }
     </style>
 </head>
@@ -193,7 +193,7 @@
                         </a>
                         {{else}}
                         <div class="flex-shrink-0 mr-3 w-12 h-12 flex items-center justify-center rounded-xl bg-surface0 text-subtext0">
-                            <i class="fas {{.FileIcon}} text-lg"></i>
+                            <i class="fas {{.FileIcon}} text-2xl"></i>
                         </div>
                         {{end}}
                         <div class="truncate mr-2 flex-1">
@@ -520,7 +520,7 @@
         // Stagger card animations
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.card-animate').forEach((el, i) => {
-                el.style.animationDelay = Math.min(i * 0.02, 0.3) + 's';
+                el.style.animationDelay = Math.min(i * 0.04, 0.4) + 's';
             });
         });
 
@@ -891,33 +891,7 @@
                 .then(r => {
                     if (r.ok) {
                         editLinkModal.classList.add('hidden');
-                        const displayName = newName || newURL;
-                        // Update the card in-place without a reload
-                        document.querySelectorAll('[data-url]').forEach(card => {
-                            if (card.dataset.url === editLinkOldURL) {
-                                card.dataset.url = newURL;
-                                card.dataset.linkname = displayName;
-                                card.dataset.name = displayName;
-                                card.dataset.entryId = 'link/' + encodeURIComponent(newURL);
-                                const a = card.querySelector('a[href]');
-                                if (a) {
-                                    a.href = newURL;
-                                    const nameSpan = a.querySelector('span:first-child');
-                                    if (nameSpan) nameSpan.lastChild.textContent = displayName;
-                                    let urlSpan = a.querySelector('span:last-child');
-                                    if (displayName !== newURL) {
-                                        if (!urlSpan || urlSpan === nameSpan) {
-                                            urlSpan = document.createElement('span');
-                                            urlSpan.className = 'text-xs text-overlay1 truncate pl-4';
-                                            a.appendChild(urlSpan);
-                                        }
-                                        urlSpan.textContent = newURL;
-                                    } else if (urlSpan && urlSpan !== nameSpan) {
-                                        urlSpan.remove();
-                                    }
-                                }
-                            }
-                        });
+                        window.location.reload();
                     } else {
                         r.text().then(t => alert('Error: ' + t));
                     }
