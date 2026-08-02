@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notepad</title>
-    <link rel="stylesheet" href="{{.Prefix}}/static/fontawesome/css/all.min.css">
-    <link href="{{.Prefix}}/static/css/inter.css" rel="stylesheet">
-    <link rel="icon" type="image/x-icon" href="{{.Prefix}}/favicon.ico">
+    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+    <link href="/static/css/inter.css" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 
     <!-- Syntax Highlighting Styles (Catppuccin) -->
-    <link rel="stylesheet" href="{{.Prefix}}/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
-    <link rel="stylesheet" href="{{.Prefix}}/static/css/catppuccin-mocha.css" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="/static/css/catppuccin-mocha.css" media="(prefers-color-scheme: dark)">
 
     <!-- Catppuccin Color Palette -->
     <style>
@@ -63,7 +63,7 @@
             });
         })();
     </script>
-    <script src="{{.Prefix}}/static/js/tailwindcss.js"></script>
+    <script src="/static/js/tailwindcss.js"></script>
     <script>
         // Configure Tailwind to use the Catppuccin color variables
         tailwind.config = {
@@ -100,7 +100,7 @@
         <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
             <h1 class="text-2xl sm:text-3xl font-bold text-mauve">Notepad</h1>
             <div class="flex items-center gap-2">
-                <a href="{{.Prefix}}/" class="flex items-center justify-center sm:justify-start gap-2 w-10 sm:w-auto h-10 sm:px-3 bg-base hover:bg-surface0 rounded-xl cursor-pointer transition-all duration-200 no-underline" title="Back to Home">
+                <a href="/" class="flex items-center justify-center sm:justify-start gap-2 w-10 sm:w-auto h-10 sm:px-3 bg-base hover:bg-surface0 rounded-xl cursor-pointer transition-all duration-200 no-underline" title="Back to Home">
                     <i class="fas fa-arrow-left text-subtext0"></i>
                     <span class="font-medium text-sm text-subtext0 hidden sm:inline">Back</span>
                 </a>
@@ -126,10 +126,9 @@
     </div>
 
     <!-- JavaScript -->
-    <script src="{{.Prefix}}/static/js/highlight.min.js"></script>
-    <script src="{{.Prefix}}/static/js/marked.min.js"></script>
-    <script>window.__prefix = "{{.Prefix}}";</script>
-    <script src="{{.Prefix}}/md.js"></script>
+    <script src="/static/js/highlight.min.js"></script>
+    <script src="/static/js/marked.min.js"></script>
+    <script src="/md.js"></script>
 
 </body>
 </html>
