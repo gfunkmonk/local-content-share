@@ -148,7 +148,7 @@
                     {{range .}}{{if eq .Type "text"}}
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer card-animate" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
                         <div class="truncate mr-2">
-                            <div class="font-medium text-text">{{.Filename}}</div>
+                            <div class="font-medium text-text" title="{{.Filename}}">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
@@ -197,7 +197,7 @@
                         </div>
                         {{end}}
                         <div class="truncate mr-2 flex-1">
-                            <div class="font-medium text-text">{{.Filename}}</div>
+                            <div class="font-medium text-text" title="{{.Filename}}">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
