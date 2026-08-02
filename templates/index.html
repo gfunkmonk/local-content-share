@@ -6,6 +6,8 @@
     <title>Local Content Share</title>
     <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
     <link href="/static/css/inter.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="/static/css/catppuccin-mocha.css" media="(prefers-color-scheme: dark)">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
     <!-- PWA Meta Tags -->
@@ -59,6 +61,7 @@
             });
         })();
     </script>
+    <script src="/static/js/highlight.min.js"></script>
     <script src="/static/js/tailwindcss.js"></script>
     <script>
         tailwind.config = {
@@ -290,7 +293,7 @@
         <div class="bg-crust rounded-3xl p-4 w-full max-w-4xl h-full max-h-[80vh] flex flex-col z-10">
             <h3 id="view-snippet-title" class="text-lg font-medium text-text mb-4 truncate"></h3>
             <div class="flex-grow bg-base rounded-2xl p-4 overflow-y-auto mb-4">
-                <pre id="view-snippet-content" class="text-text whitespace-pre-wrap break-words"></pre>
+                <pre class="h-full m-0 bg-transparent"><code id="view-snippet-content" class="text-text whitespace-pre-wrap break-words rounded-none bg-transparent"></code></pre>
             </div>
             <div class="flex justify-end gap-4">
                 <button type="button" id="view-copy-button" class="px-4 py-2 bg-blue hover:bg-sapphire text-crust font-semibold rounded-xl transition-colors">Copy</button>
@@ -585,16 +588,44 @@
         const viewCloseButton = document.getElementById('view-close-button');
         const viewCopyButton = document.getElementById('view-copy-button');
         let contentToCopy = '';
+        // Map common extensions to highlight.js language names
+        const EXT_LANG = {
+            js: 'javascript', mjs: 'javascript', cjs: 'javascript',
+            ts: 'typescript', tsx: 'typescript',
+            py: 'python', rb: 'ruby', rs: 'rust',
+            go: 'go', java: 'java', kt: 'kotlin',
+            c: 'c', h: 'c', cpp: 'cpp', hpp: 'cpp',
+            cs: 'csharp', php: 'php', swift: 'swift',
+            sh: 'bash', bash: 'bash', zsh: 'bash',
+            ps1: 'powershell', psm1: 'powershell',
+            html: 'html', htm: 'html', xml: 'xml', svg: 'xml',
+            css: 'css', scss: 'scss', less: 'less',
+            json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
+            md: 'markdown', markdown: 'markdown',
+            sql: 'sql', dockerfile: 'dockerfile',
+            ini: 'ini', conf: 'ini', env: 'ini',
+        };
+
         async function showViewModal(id, filename) {
             try {
                 const response = await fetch(`/raw/${id}`);
                 if (!response.ok) throw new Error('Failed to fetch snippet content.');
-                
-                const content = await response.text();
-                contentToCopy = content;
+                const text = await response.text();
+                contentToCopy = text;
 
                 viewSnippetTitle.textContent = filename;
-                viewSnippetContent.textContent = content;
+
+                // Detect language from extension and highlight if supported
+                const ext = filename.split('.').pop().toLowerCase();
+                const lang = EXT_LANG[ext];
+                if (lang && hljs.getLanguage(lang)) {
+                    viewSnippetContent.innerHTML = hljs.highlight(text, { language: lang }).value;
+                    viewSnippetContent.className = 'hljs language-' + lang + ' whitespace-pre-wrap break-words rounded-none bg-transparent';
+                } else {
+                    viewSnippetContent.textContent = text;
+                    viewSnippetContent.className = 'text-text whitespace-pre-wrap break-words rounded-none bg-transparent';
+                }
+
                 viewSnippetModal.classList.remove('hidden');
             } catch (error) {
                 console.error('Error showing view modal:', error);
