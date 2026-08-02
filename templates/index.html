@@ -95,11 +95,11 @@
             font-family: 'Inter', sans-serif;
         }
         @keyframes card-in {
-            from { opacity: 0; transform: translateY(6px); }
+            from { opacity: 0; transform: translateY(4px); }
             to   { opacity: 1; transform: translateY(0); }
         }
         .card-animate {
-            animation: card-in 0.18s ease-out both;
+            animation: card-in 0.15s ease-out both;
         }
     </style>
 </head>
@@ -159,8 +159,6 @@
                         </div>
                     </div>
                     {{end}}{{end}}
-                    {{if not .}}
-                    {{end}}
                 </div>
                 {{$hasSnippets := false}}{{range .}}{{if eq .Type "text"}}{{$hasSnippets = true}}{{end}}{{end}}
                 {{if not $hasSnippets}}
@@ -194,8 +192,8 @@
                             <img src="/view/{{.ID}}" alt="{{.Filename}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" loading="lazy">
                         </a>
                         {{else}}
-                        <div class="flex-shrink-0 mr-3 w-10 h-10 flex items-center justify-center rounded-xl bg-surface0 text-subtext0">
-                            <i class="fas {{.FileIcon}}"></i>
+                        <div class="flex-shrink-0 mr-3 w-12 h-12 flex items-center justify-center rounded-xl bg-surface0 text-subtext0">
+                            <i class="fas {{.FileIcon}} text-lg"></i>
                         </div>
                         {{end}}
                         <div class="truncate mr-2 flex-1">
@@ -522,7 +520,7 @@
         // Stagger card animations
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.card-animate').forEach((el, i) => {
-                el.style.animationDelay = (i * 0.03) + 's';
+                el.style.animationDelay = Math.min(i * 0.02, 0.3) + 's';
             });
         });
 
@@ -869,9 +867,16 @@
             editLinkOldURL = url;
             editLinkOldDisplay.textContent = url;
             editLinkInput.value = url;
+            // Pre-fill name only if it differs from url
             editLinkNameInput.value = (name && name !== url) ? name : '';
             editLinkModal.classList.remove('hidden');
-            editLinkNameInput.focus();
+            // Focus URL if name already set, otherwise name
+            if (editLinkNameInput.value) {
+                editLinkInput.focus();
+                editLinkInput.select();
+            } else {
+                editLinkNameInput.focus();
+            }
         }
 
         editLinkCancel.addEventListener('click', () => editLinkModal.classList.add('hidden'));
@@ -881,9 +886,8 @@
             const newURL = editLinkInput.value.trim();
             const newName = editLinkNameInput.value.trim();
             if (!newURL) return;
-            const encoded = encodeURIComponent(editLinkOldURL);
-            const body = new URLSearchParams({ newurl: newURL, newname: newName });
-            fetch(`/edit-link/${encoded}`, { method: 'POST', body })
+            const body = new URLSearchParams({ oldurl: editLinkOldURL, newurl: newURL, newname: newName });
+            fetch('/edit-link/', { method: 'POST', body })
                 .then(r => {
                     if (r.ok) {
                         editLinkModal.classList.add('hidden');

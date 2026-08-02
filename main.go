@@ -854,13 +854,13 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		oldURL, err := url.PathUnescape(strings.TrimPrefix(r.URL.Path, "/edit-link/"))
-		if err != nil || oldURL == "" {
-			http.Error(w, "Invalid URL", http.StatusBadRequest)
+		oldURL := strings.TrimSpace(r.FormValue("oldurl"))
+		if oldURL == "" {
+			http.Error(w, "Old URL cannot be empty", http.StatusBadRequest)
 			return
 		}
-		newURL := r.FormValue("newurl")
-		newName := r.FormValue("newname")
+		newURL := strings.TrimSpace(r.FormValue("newurl"))
+		newName := strings.TrimSpace(r.FormValue("newname"))
 		if newURL == "" {
 			http.Error(w, "New URL cannot be empty", http.StatusBadRequest)
 			return
