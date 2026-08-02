@@ -208,15 +208,14 @@
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
-                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group" data-name="{{.Content}}" data-entry-id="{{.ID}}">
-                        <div class="flex items-center justify-between">
-                            <div class="font-medium truncate text-text mr-2">{{.Content}}</div>
-                            <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
-                                <button onclick="event.preventDefault(); event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
-                                <button onclick="event.preventDefault(); event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
+                    <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group" data-name="{{.Content}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" draggable="true">
+                        <span class="drag-handle cursor-grab active:cursor-grabbing text-overlay1 hover:text-subtext0 flex-shrink-0 px-1 touch-none select-none" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>
+                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="font-medium truncate text-text no-underline flex-1 min-w-0">{{.Content}}</a>
+                        <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
+                            <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
-                    </a>
+                    </div>
                     {{end}}{{end}}
                 </div>
             </section>
@@ -779,6 +778,72 @@
                 confirmCallback = null;
             }
         });
+
+        // ── Drag-to-reorder links ────────────────────────────────────────────
+        (function () {
+            const list = document.getElementById('links-list');
+            if (!list) return;
+
+            let dragSrc = null;
+
+            function getDragItem(el) {
+                return el.closest('[draggable="true"]');
+            }
+
+            list.addEventListener('dragstart', (e) => {
+                dragSrc = getDragItem(e.target);
+                if (!dragSrc) return;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', dragSrc.dataset.url);
+                setTimeout(() => dragSrc.classList.add('opacity-40'), 0);
+            });
+
+            list.addEventListener('dragend', (e) => {
+                const item = getDragItem(e.target);
+                if (item) item.classList.remove('opacity-40');
+                list.querySelectorAll('[draggable]').forEach(el => el.classList.remove('ring-2', 'ring-mauve'));
+                dragSrc = null;
+            });
+
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const target = getDragItem(e.target);
+                if (!target || target === dragSrc) return;
+                list.querySelectorAll('[draggable]').forEach(el => el.classList.remove('ring-2', 'ring-mauve'));
+                target.classList.add('ring-2', 'ring-mauve');
+            });
+
+            list.addEventListener('dragleave', (e) => {
+                const target = getDragItem(e.target);
+                if (target) target.classList.remove('ring-2', 'ring-mauve');
+            });
+
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = getDragItem(e.target);
+                if (!target || !dragSrc || target === dragSrc) return;
+
+                // Insert dragSrc before or after target depending on pointer position
+                const rect = target.getBoundingClientRect();
+                const after = e.clientY > rect.top + rect.height / 2;
+                if (after) {
+                    target.after(dragSrc);
+                } else {
+                    target.before(dragSrc);
+                }
+
+                target.classList.remove('ring-2', 'ring-mauve');
+
+                // Persist new order to backend
+                const urls = Array.from(list.querySelectorAll('[data-url]')).map(el => el.dataset.url);
+                fetch('/api/reorder-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(urls),
+                }).catch(err => console.error('Failed to save link order:', err));
+            });
+        })();
 
         // SSE for live updates
         let evtSource;

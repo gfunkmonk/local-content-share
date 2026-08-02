@@ -822,6 +822,39 @@ func main() {
 	// SSE Updates for content refresh
 	http.HandleFunc("/api/updates", handleContentUpdates)
 
+	// Reorder links
+	http.HandleFunc("/api/reorder-links", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var links []string
+		if err := json.NewDecoder(r.Body).Decode(&links); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		// Validate each entry is a proper http/https URL
+		for _, l := range links {
+			u, err := url.ParseRequestURI(l)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+				http.Error(w, "Invalid URL in list: "+l, http.StatusBadRequest)
+				return
+			}
+		}
+		output := strings.Join(links, "\n")
+		if output != "" {
+			output += "\n"
+		}
+		if err := os.WriteFile(filepath.Join("data", "links.file"), []byte(output), 0644); err != nil {
+			http.Error(w, "Failed to save links", http.StatusInternalServerError)
+			return
+		}
+		notifyContentChange()
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok"}`))
+		log.Println("Reordered links")
+	})
+
 	// Start server
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 }
