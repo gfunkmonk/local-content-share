@@ -6,6 +6,8 @@
     <title>Local Content Share</title>
     <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
     <link href="/static/css/inter.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="/static/css/catppuccin-mocha.css" media="(prefers-color-scheme: dark)">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
     <!-- PWA Meta Tags -->
@@ -44,6 +46,7 @@
     </style>
     <script>
         // Immediately apply theme to prevent FOUC
+        // Priority: localStorage > default dark
         (function() {
             function applyTheme(theme) {
                 if (theme === 'dark') {
@@ -52,13 +55,18 @@
                     document.documentElement.classList.remove('dark');
                 }
             }
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            applyTheme(mediaQuery.matches ? 'dark' : 'light');
-            mediaQuery.addEventListener('change', (e) => {
-                applyTheme(e.matches ? 'dark' : 'light');
-            });
+            const saved = localStorage.getItem('theme');
+            if (saved === 'light') {
+                applyTheme('light');
+            } else if (saved === 'system') {
+                applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            } else {
+                // 'dark' is the default
+                applyTheme('dark');
+            }
         })();
     </script>
+    <script src="/static/js/highlight.min.js"></script>
     <script src="/static/js/tailwindcss.js"></script>
     <script>
         tailwind.config = {
@@ -91,36 +99,47 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        @keyframes card-in {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .card-animate {
+            animation: card-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+        }
     </style>
 </head>
 <body class="bg-crust text-text antialiased transition-colors duration-300">
 
     <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
 
-        <header class="text-center mb-8">
+        <header class="text-center mb-8 relative">
             <h1 class="text-3xl sm:text-4xl font-bold text-mauve">Local-Content-Share</h1>
+            <button id="settings-button" type="button" class="absolute top-0 right-0 w-9 h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Settings">
+                <i class="fas fa-gear"></i>
+            </button>
         </header>
 
-        <main class="flex flex-col gap-8">
+        <main class="flex flex-col gap-6">
             <section class="w-full">
-                <div class="flex flex-wrap items-center justify-center gap-3 mb-4">
+                <div class="flex flex-wrap items-center justify-center gap-8 mb-4">
                     <button id="new-link-button" type="button" class="flex items-center gap-2 px-4 py-2 bg-base hover:bg-surface0 rounded-xl cursor-pointer transition-colors">
                         <i class="fas fa-link text-subtext0"></i>
                         <span class="font-medium text-sm text-subtext0">Link</span>
                     </button>
                     <button type="button" id="new-button" class="flex items-center gap-2 px-4 py-2 bg-base hover:bg-surface0 rounded-xl cursor-pointer transition-colors">
-                        <i class="fas fa-pen-nib text-subtext0"></i>
+                        <i class="fas fa-plus-square text-subtext0"></i>
                         <span class="font-medium text-sm text-subtext0">New</span>
                     </button>
                     <a href="/md" class="flex items-center gap-2 px-4 py-2 bg-base hover:bg-surface0 rounded-xl transition-colors no-underline">
-                        <i class="fas fa-note-sticky text-subtext0"></i>
+                        <i class="fas fa-file-alt text-subtext0"></i>
                         <span class="font-medium text-sm text-subtext0">Notepad</span>
                     </a>
+
                 </div>
             </section>
 
             <!-- Snippets Section -->
-            <section class="content-section">
+            <section class="content-section bg-mantle rounded-3xl p-5">
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-2xl font-semibold text-text">Snippets</h2>
                     <div class="flex gap-2">
@@ -136,24 +155,32 @@
                 </div>
                 <div id="snippets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "text"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" onclick="showViewModal('{{.ID}}', '{{.Filename}}')">
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer card-animate" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="handleCardClick(event, '{{.ID}}', () => showViewModal('{{.ID}}', '{{.Filename}}'))">
+                        <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-2 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
                         <div class="truncate mr-2">
-                            <div class="font-medium text-text">{{.Filename}}</div>
+                            <div class="font-medium text-text" title="{{.Filename}}">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
-                            <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
                             <button onclick="event.stopPropagation(); showEditForm('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
-                            <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy content"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); copyToClipboard(window.location.origin + '/raw/{{.ID}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy raw URL"><i class="fas fa-link"></i></button>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     {{end}}{{end}}
                 </div>
+                {{$hasSnippets := false}}{{range .}}{{if eq .Type "text"}}{{$hasSnippets = true}}{{end}}{{end}}
+                {{if not $hasSnippets}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-pen-nib text-2xl"></i>
+                    <p class="text-sm">No snippets yet</p>
+                </div>
+                {{end}}
             </section>
 
             <!-- Files Section -->
-            <section class="content-section">
+            <section class="content-section bg-mantle rounded-3xl p-5">
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-2xl font-semibold text-text">Files</h2>
                     <div class="flex gap-2">
@@ -169,47 +196,79 @@
                 </div>
                 <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {{range .}}{{if eq .Type "file"}}
-                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}">
-                        <div class="truncate mr-2">
-                            <div class="font-medium text-text">{{.Filename}}</div>
+                    <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 card-animate" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="handleCardClick(event, '{{.ID}}', null)">
+                        <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-2 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
+                        {{if .IsImage}}
+                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                            <img src="/view/{{.ID}}" alt="{{.Filename}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" loading="lazy">
+                        </a>
+                        {{else if .IsVideo}}
+                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                            <video src="/view/{{.ID}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" preload="metadata" muted playsinline onloadedmetadata="this.currentTime=1"></video>
+                        </a>
+                        {{else if .IsViewable}}
+                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                            <div class="w-12 h-12 flex items-center justify-center rounded-2xl bg-surface0 hover:bg-surface1 transition-colors">
+                                <i class="fas {{.FileIcon}} text-[2rem] text-overlay1"></i>
+                            </div>
+                        </a>
+                        {{else}}
+                        <div class="flex-shrink-0 mr-3 w-12 h-12 flex items-center justify-center rounded-2xl bg-surface0">
+                            <i class="fas {{.FileIcon}} text-[2rem] text-overlay1"></i>
+                        </div>
+                        {{end}}
+                        <div class="truncate mr-2 flex-1">
+                            <div class="font-medium text-text" title="{{.Filename}}">{{.Filename}}</div>
                             <div class="text-xs text-overlay1 entry-meta" data-size="{{.Size}}" data-date="{{.ModTime}}" data-expiry="{{.Expiry}}"></div>
                         </div>
                         <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
                             <button onclick="event.stopPropagation(); showRenameModal('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Rename"><i class="fas fa-i-cursor"></i></button>
                             <a href="/download/{{.ID}}" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="Download"><i class="fas fa-download"></i></a>
-                            <a href="/view/{{.ID}}" target="_blank" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="View"><i class="fas fa-eye"></i></a>
+                            <button onclick="event.stopPropagation(); copyToClipboard(window.location.origin + '/download/{{.ID}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy download link"><i class="fas fa-link"></i></button>
+                            
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     {{end}}{{end}}
                 </div>
+                {{$hasFiles := false}}{{range .}}{{if eq .Type "file"}}{{$hasFiles = true}}{{end}}{{end}}
+                {{if not $hasFiles}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-folder-open text-2xl"></i>
+                    <p class="text-sm">No files yet</p>
+                </div>
+                {{end}}
             </section>
 
             <!-- Links Section -->
-            <section class="content-section">
+            <section class="content-section bg-mantle rounded-3xl p-5">
                 <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-2xl font-semibold text-text">Links</h2>
-                    <div class="flex gap-2">
-                        <select data-sort-select data-section="links-list" class="bg-base text-subtext0 text-sm rounded-xl px-2 py-1 border-none focus:outline-none cursor-pointer"> <option value="name">Name</option>
-                        </select>
-                        <button data-sort-order data-section="links-list" class="w-8 h-8 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors cursor-pointer" title="Toggle sort order">
-                            <i class="fas fa-arrow-up-z-a"></i>
-                        </button>
-                    </div>
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
                     {{range .}}{{if eq .Type "link"}}
-                    <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="block bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 no-underline group" data-name="{{.Content}}">
-                        <div class="flex items-center justify-between">
-                            <div class="font-medium truncate text-text mr-2">{{.Content}}</div>
-                            <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
-                                <button onclick="event.preventDefault(); event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
-                                <button onclick="event.preventDefault(); event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
-                            </div>
+                    <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group card-animate" data-name="{{.LinkName}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" data-linkname="{{.LinkName}}" draggable="true">
+                        <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-1 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
+                        <span class="drag-handle cursor-grab active:cursor-grabbing text-overlay1 hover:text-subtext0 flex-shrink-0 px-1 touch-none select-none" title="Drag to reorder"><i class="fas fa-align-justify"></i></span>
+                        <a href="{{.Content}}" target="_blank" rel="noopener noreferrer" class="no-underline flex-1 min-w-0 flex flex-col">
+                            <span class="font-medium truncate text-text flex items-center gap-2" title="{{.LinkName}}"><i class="fas fa-external-link text-subtext0 flex-shrink-0 text-xs"></i>{{.LinkName}}</span>
+                            {{if ne .LinkName .Content}}<span class="text-xs text-overlay1 truncate pl-4" title="{{.Content}}">{{.Content}}</span>{{end}}
+                        </a>
+                        <div class="flex items-center gap-0 sm:gap-1 flex-shrink-0">
+                            <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy"><i class="fas fa-copy"></i></button>
+                            <button onclick="event.stopPropagation(); showEditLinkModal('{{.Content}}', '{{.LinkName}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
+                            <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
-                    </a>
+                    </div>
                     {{end}}{{end}}
                 </div>
+                {{$hasLinks := false}}{{range .}}{{if eq .Type "link"}}{{$hasLinks = true}}{{end}}{{end}}
+                {{if not $hasLinks}}
+                <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
+                    <i class="fas fa-link text-2xl"></i>
+                    <p class="text-sm">No links yet</p>
+                </div>
+                {{end}}
             </section>
         </main>
     </div>
@@ -258,6 +317,7 @@
             <h3 class="text-lg font-medium text-text mb-4">Add a new Link</h3>
             <form id="new-link-form" action="/submit" method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="type" value="link">
+                <input type="text" name="name" placeholder="Name (optional)" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-3">
                 <input type="url" name="content" required placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
                 <div class="flex justify-end gap-4">
                     <button type="button" id="link-cancel-button" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Cancel</button>
@@ -283,13 +343,28 @@
         </div>
     </div>
 
+    <!-- Edit Link Modal -->
+    <div id="edit-link-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
+        <div id="edit-link-modal-backdrop" class="absolute inset-0"></div>
+        <div class="bg-crust rounded-3xl p-6 w-full max-w-md z-10">
+            <h3 class="text-lg font-medium text-text mb-2">Edit Link</h3>
+            <p class="text-sm text-subtext1 mb-4">Current URL: <code id="edit-link-old-display" class="bg-base text-peach rounded-md px-1 py-0.5 break-all"></code></p>
+            <input type="text" id="edit-link-name-input" placeholder="Name (optional)" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-3">
+            <input type="url" id="edit-link-input" placeholder="https://example.com" class="w-full bg-base px-4 py-3 text-text placeholder-overlay1 focus:outline-none rounded-2xl mb-6">
+            <div class="flex justify-end gap-4">
+                <button type="button" id="edit-link-cancel" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Cancel</button>
+                <button type="button" id="edit-link-save" class="px-4 py-2 bg-blue hover:bg-sapphire text-crust font-semibold rounded-xl transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- View Snippet Modal -->
     <div id="view-snippet-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
         <div id="view-modal-backdrop" class="absolute inset-0"></div>
         <div class="bg-crust rounded-3xl p-4 w-full max-w-4xl h-full max-h-[80vh] flex flex-col z-10">
             <h3 id="view-snippet-title" class="text-lg font-medium text-text mb-4 truncate"></h3>
             <div class="flex-grow bg-base rounded-2xl p-4 overflow-y-auto mb-4">
-                <pre id="view-snippet-content" class="text-text whitespace-pre-wrap break-words"></pre>
+                <pre class="h-full m-0 bg-transparent"><code id="view-snippet-content" class="text-text whitespace-pre-wrap break-words rounded-none bg-transparent"></code></pre>
             </div>
             <div class="flex justify-end gap-4">
                 <button type="button" id="view-copy-button" class="px-4 py-2 bg-blue hover:bg-sapphire text-crust font-semibold rounded-xl transition-colors">Copy</button>
@@ -308,6 +383,61 @@
                 <button id="confirm-action-button" class="px-4 py-2 bg-red hover:bg-maroon text-crust font-semibold rounded-xl transition-colors">Delete</button>
             </div>
         </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
+        <div id="settings-modal-backdrop" class="absolute inset-0"></div>
+        <div class="bg-crust rounded-3xl p-6 w-full max-w-sm z-10">
+            <h3 class="text-lg font-medium text-text mb-6">Settings</h3>
+            <div class="mb-6">
+                <p class="text-sm text-subtext1 mb-3">Theme</p>
+                <div class="flex gap-2">
+                    <button data-theme="dark" class="theme-btn flex-1 flex flex-col items-center gap-2 px-3 py-3 rounded-2xl border-2 border-transparent bg-base hover:bg-surface0 transition-colors cursor-pointer">
+                        <i class="fas fa-moon text-subtext0 text-lg"></i>
+                        <span class="text-xs text-subtext0 font-medium">Dark</span>
+                    </button>
+                    <button data-theme="light" class="theme-btn flex-1 flex flex-col items-center gap-2 px-3 py-3 rounded-2xl border-2 border-transparent bg-base hover:bg-surface0 transition-colors cursor-pointer">
+                        <i class="fas fa-sun text-subtext0 text-lg"></i>
+                        <span class="text-xs text-subtext0 font-medium">Light</span>
+                    </button>
+                    <button data-theme="system" class="theme-btn flex-1 flex flex-col items-center gap-2 px-3 py-3 rounded-2xl border-2 border-transparent bg-base hover:bg-surface0 transition-colors cursor-pointer">
+                        <i class="fas fa-circle-half-stroke text-subtext0 text-lg"></i>
+                        <span class="text-xs text-subtext0 font-medium">System</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <p class="text-sm text-subtext1 mb-3">Data</p>
+                <div class="flex flex-col gap-2">
+                    <a href="/api/export" class="flex items-center gap-3 px-4 py-3 bg-base hover:bg-surface0 rounded-2xl transition-colors no-underline" title="Download all content as a zip">
+                        <i class="fas fa-file-export text-subtext0"></i>
+                        <span class="text-sm text-subtext0 font-medium">Export all data</span>
+                    </a>
+                    <label class="flex items-center gap-3 px-4 py-3 bg-base hover:bg-surface0 rounded-2xl transition-colors cursor-pointer" title="Import a previously exported zip">
+                        <i class="fas fa-file-import text-subtext0"></i>
+                        <span class="text-sm text-subtext0 font-medium">Import data</span>
+                        <input type="file" id="import-file-input" accept=".zip" class="hidden">
+                    </label>
+                    <button type="button" id="select-mode-btn" class="flex items-center gap-3 px-4 py-3 bg-base hover:bg-surface0 rounded-2xl transition-colors text-left" title="Select items to bulk delete">
+                        <i class="fas fa-trash-alt text-subtext0"></i>
+                        <span class="text-sm text-subtext0 font-medium">Bulk delete</span>
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button type="button" id="settings-close" class="px-4 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Delete Bar -->
+    <div id="bulk-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-crust border border-surface1 rounded-2xl px-5 py-3 flex items-center gap-4 shadow-xl z-50">
+        <span id="bulk-count" class="text-sm text-subtext1 font-medium">0 selected</span>
+        <button id="bulk-select-all" type="button" class="text-sm text-blue hover:text-sapphire font-medium transition-colors">Select all</button>
+        <button id="bulk-deselect-all" type="button" class="text-sm text-subtext0 hover:text-text font-medium transition-colors">Deselect</button>
+        <button id="bulk-delete-btn" type="button" class="px-4 py-1.5 bg-red hover:bg-maroon text-crust font-semibold rounded-xl transition-colors text-sm">Delete selected</button>
+        <button id="bulk-cancel-btn" type="button" class="px-4 py-1.5 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors text-sm">Cancel</button>
     </div>
 
     <script>
@@ -349,8 +479,28 @@
         const cancelButton = document.getElementById('cancel-button');
         const modalBackdrop = document.getElementById('modal-backdrop');
         newButton.addEventListener('click', () => newItemModal.classList.remove('hidden'));
-        cancelButton.addEventListener('click', closeAndResetNewItemModal);
-        modalBackdrop.addEventListener('click', closeAndResetNewItemModal);
+
+        function hasUnsavedContent() {
+            const textarea = document.querySelector('#new-item-form [name="content"]');
+            const fileInput = document.getElementById('file-upload');
+            return (textarea && textarea.value.trim() !== '') ||
+                   (fileInput && fileInput.files.length > 0);
+        }
+
+        function maybeCloseNewItemModal() {
+            if (hasUnsavedContent()) {
+                showConfirmation(
+                    closeAndResetNewItemModal,
+                    'Discard changes?',
+                    'You have unsaved content. Close anyway?'
+                );
+            } else {
+                closeAndResetNewItemModal();
+            }
+        }
+
+        cancelButton.addEventListener('click', maybeCloseNewItemModal);
+        modalBackdrop.addEventListener('click', maybeCloseNewItemModal);
 
         // Modal handling for New Link
         const newLinkButton = document.getElementById('new-link-button');
@@ -394,13 +544,32 @@
             if (droppedFiles.length > 0) {
                 fileInput.files = droppedFiles;
                 updateFileDisplay(droppedFiles);
+                applyExtension(droppedFiles);
             }
         });
-        fileInput.addEventListener('change', () => {
-            updateFileDisplay(fileInput.files);
-        });
+        const nameInput = document.querySelector('#new-item-form [name="name"]');
 
-        // Paste image from clipboard
+        // Auto-append file extension to the name field when submitting
+        // This handles all cases: name typed before or after file selection
+        function ensureExtension() {
+            const files = fileInput.files;
+            if (files.length !== 1) return;
+            const name = nameInput.value.trim();
+            if (!name) return;
+            const origExt = files[0].name.includes('.') ? files[0].name.slice(files[0].name.lastIndexOf('.')) : '';
+            if (!origExt) return;
+            if (!name.toLowerCase().endsWith(origExt.toLowerCase())) {
+                // Replace any existing extension or just append
+                const dotIdx = name.lastIndexOf('.');
+                const base = dotIdx > 0 ? name.slice(0, dotIdx) : name;
+                nameInput.value = base + origExt;
+            }
+        }
+
+        // Apply on blur (when user clicks/tabs away from name field)
+        nameInput.addEventListener('blur', ensureExtension);
+
+                // Paste image from clipboard
         newItemModal.addEventListener('paste', (e) => {
             const items = (e.clipboardData || e.originalEvent.clipboardData).items;
             let files = [];
@@ -417,6 +586,7 @@
                 files.forEach(file => dataTransfer.items.add(file));
                 fileInput.files = dataTransfer.files;
                 updateFileDisplay(fileInput.files);
+                applyExtension(fileInput.files);
             }
         });
 
@@ -444,6 +614,13 @@
         });
 
         // Fetch expiry options and reverse link order on load
+        // Stagger card animations
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.card-animate').forEach((el, i) => {
+                el.style.animationDelay = Math.min(i * 0.04, 0.4) + 's';
+            });
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             fetch('/getExpiryOptions').then(response => response.json()).then(options => {
                 if (options && options.length > 0) {
@@ -465,7 +642,7 @@
             });
             // Apply default sort to all sections
             // TODO: We might want to store the sorting preferences in localStorage
-            ['snippets-list', 'files-list', 'links-list'].forEach(sortSection);
+            ['snippets-list', 'files-list'].forEach(sortSection);
         });
 
         // Rename Modal Logic
@@ -495,12 +672,12 @@
         // Edit form logic
         async function showEditForm(id, filename) {
             const response = await fetch(`/raw/${id}`);
-            const content = await response.text();
+            const text = await response.text();
             const form = document.getElementById('new-item-form');
             form.action = `/edit/${id}`;
             form.querySelector('[name="name"]').value = filename;
-            form.querySelector('[name="name"]').disabled = true; 
-            form.querySelector('[name="content"]').value = content;
+            form.querySelector('[name="name"]').disabled = false;
+            form.querySelector('[name="content"]').value = text;
             form.querySelector('[name="file-upload"]').parentElement.parentElement.style.display = 'none';
             newItemModal.classList.remove('hidden');
         }
@@ -562,19 +739,17 @@
 
         function deleteItem(id) {
             showConfirmation(() => {
-                fetch(`/delete/${id}`, {
-                    method: 'POST'
-                })
+                fetch(`/delete/${id}`, { method: 'POST' })
                 .then(response => {
                     if (response.ok) {
-                        window.location.reload();
+                        // Remove matching cards by data-entry-id without a full reload
+                        document.querySelectorAll(`[data-entry-id="${CSS.escape(id)}"]`)
+                            .forEach(el => el.remove());
                     } else {
                         console.error('Failed to delete the item.');
                     }
                 })
-                .catch(error => {
-                    console.error('Error deleting item:', error);
-                });
+                .catch(error => console.error('Error deleting item:', error));
             }, 'Delete Item?', `Are you sure you want to delete this item? This action is permanent.`);
         }
 
@@ -586,16 +761,44 @@
         const viewCloseButton = document.getElementById('view-close-button');
         const viewCopyButton = document.getElementById('view-copy-button');
         let contentToCopy = '';
+        // Map common extensions to highlight.js language names
+        const EXT_LANG = {
+            js: 'javascript', mjs: 'javascript', cjs: 'javascript',
+            ts: 'typescript', tsx: 'typescript',
+            py: 'python', rb: 'ruby', rs: 'rust',
+            go: 'go', java: 'java', kt: 'kotlin',
+            c: 'c', h: 'c', cpp: 'cpp', hpp: 'cpp',
+            cs: 'csharp', php: 'php', swift: 'swift',
+            sh: 'bash', bash: 'bash', zsh: 'bash',
+            ps1: 'powershell', psm1: 'powershell',
+            html: 'html', htm: 'html', xml: 'xml', svg: 'xml',
+            css: 'css', scss: 'scss', less: 'less',
+            json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'toml',
+            md: 'markdown', markdown: 'markdown',
+            sql: 'sql', dockerfile: 'dockerfile',
+            ini: 'ini', conf: 'ini', env: 'ini',
+        };
+
         async function showViewModal(id, filename) {
             try {
                 const response = await fetch(`/raw/${id}`);
                 if (!response.ok) throw new Error('Failed to fetch snippet content.');
-                
-                const content = await response.text();
-                contentToCopy = content;
+                const text = await response.text();
+                contentToCopy = text;
 
                 viewSnippetTitle.textContent = filename;
-                viewSnippetContent.textContent = content;
+
+                // Detect language from extension and highlight if supported
+                const ext = filename.split('.').pop().toLowerCase();
+                const lang = EXT_LANG[ext];
+                if (lang && hljs.getLanguage(lang)) {
+                    viewSnippetContent.innerHTML = hljs.highlight(text, { language: lang }).value;
+                    viewSnippetContent.className = 'hljs language-' + lang + ' whitespace-pre-wrap break-words rounded-none bg-transparent';
+                } else {
+                    viewSnippetContent.textContent = text;
+                    viewSnippetContent.className = 'text-text whitespace-pre-wrap break-words rounded-none bg-transparent';
+                }
+
                 viewSnippetModal.classList.remove('hidden');
             } catch (error) {
                 console.error('Error showing view modal:', error);
@@ -610,6 +813,7 @@
         // New form submission with progress
         const newItemForm = document.getElementById('new-item-form');
         newItemForm.addEventListener('submit', function(e) {
+            ensureExtension(); // make sure name has the right extension before submit
             e.preventDefault();
             const files = fileInput.files;
             const isFileUpload = files.length > 0;
@@ -632,6 +836,7 @@
             };
             xhr.onload = function() {
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    closeAndResetNewItemModal();
                     window.location.reload();
                 } else {
                     console.error('Upload failed:', xhr.statusText);
@@ -706,23 +911,322 @@
                 return ascending ? cmp : -cmp;
             });
             items.forEach(item => container.appendChild(item));
+            // Persist preferences
+            localStorage.setItem('sort-' + sectionId + '-by', sortBy);
+            localStorage.setItem('sort-' + sectionId + '-asc', ascending);
         }
 
         document.querySelectorAll('[data-sort-select]').forEach(select => {
-            select.addEventListener('change', () => sortSection(select.dataset.section));
+            const sectionId = select.dataset.section;
+            const saved = localStorage.getItem('sort-' + sectionId + '-by');
+            if (saved) select.value = saved;
+            select.addEventListener('change', () => sortSection(sectionId));
         });
 
         document.querySelectorAll('[data-sort-order]').forEach(btn => {
-            btn.dataset.ascending = 'false';
-            btn.querySelector('i').className = 'fas fa-arrow-up-z-a';
+            const sectionId = btn.dataset.section;
+            const savedAsc = localStorage.getItem('sort-' + sectionId + '-asc');
+            const asc = savedAsc === null ? false : savedAsc === 'true';
+            btn.dataset.ascending = asc;
+            btn.querySelector('i').className = asc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
             btn.addEventListener('click', () => {
-                const asc = btn.dataset.ascending !== 'false';
-                btn.dataset.ascending = !asc;
-                const icon = btn.querySelector('i');
-                icon.className = !asc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
-                sortSection(btn.dataset.section);
+                const currentAsc = btn.dataset.ascending !== 'false';
+                btn.dataset.ascending = !currentAsc;
+                btn.querySelector('i').className = !currentAsc ? 'fas fa-arrow-down-a-z' : 'fas fa-arrow-up-z-a';
+                sortSection(sectionId);
             });
         });
+
+        // Close any open modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (!newItemModal.classList.contains('hidden')) { maybeCloseNewItemModal(); return; }
+            if (!newLinkModal.classList.contains('hidden')) { newLinkModal.classList.add('hidden'); return; }
+            if (!renameModal.classList.contains('hidden')) { renameModal.classList.add('hidden'); return; }
+            if (!viewSnippetModal.classList.contains('hidden')) { viewSnippetModal.classList.add('hidden'); return; }
+            if (!settingsModal.classList.contains('hidden')) { settingsModal.classList.add('hidden'); return; }
+            if (!editLinkModal.classList.contains('hidden')) { editLinkModal.classList.add('hidden'); return; }
+            if (!confirmationModal.classList.contains('hidden')) {
+                confirmationModal.classList.add('hidden');
+                confirmCallback = null;
+            }
+        });
+
+        // Edit Link Modal
+        const editLinkModal = document.getElementById('edit-link-modal');
+        const editLinkInput = document.getElementById('edit-link-input');
+        const editLinkOldDisplay = document.getElementById('edit-link-old-display');
+        const editLinkSave = document.getElementById('edit-link-save');
+        const editLinkCancel = document.getElementById('edit-link-cancel');
+        const editLinkBackdrop = document.getElementById('edit-link-modal-backdrop');
+        let editLinkOldURL = '';
+
+        const editLinkNameInput = document.getElementById('edit-link-name-input');
+
+        function showEditLinkModal(url, name) {
+            editLinkOldURL = url;
+            editLinkOldDisplay.textContent = url;
+            editLinkInput.value = url;
+            // Pre-fill name only if it differs from url
+            editLinkNameInput.value = (name && name !== url) ? name : '';
+            editLinkModal.classList.remove('hidden');
+            // Focus URL if name already set, otherwise name
+            if (editLinkNameInput.value) {
+                editLinkInput.focus();
+                editLinkInput.select();
+            } else {
+                editLinkNameInput.focus();
+            }
+        }
+
+        editLinkCancel.addEventListener('click', () => editLinkModal.classList.add('hidden'));
+        editLinkBackdrop.addEventListener('click', () => editLinkModal.classList.add('hidden'));
+
+        editLinkSave.addEventListener('click', () => {
+            const newURL = editLinkInput.value.trim();
+            const newName = editLinkNameInput.value.trim();
+            if (!newURL) return;
+            const body = new URLSearchParams({ oldurl: editLinkOldURL, newurl: newURL, newname: newName });
+            fetch('/edit-link/', { method: 'POST', body })
+                .then(r => {
+                    if (r.ok) {
+                        editLinkModal.classList.add('hidden');
+                        window.location.reload();
+                    } else {
+                        r.text().then(t => alert('Error: ' + t));
+                    }
+                })
+                .catch(err => console.error('Failed to edit link:', err));
+        });
+
+        editLinkInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') editLinkSave.click();
+        });
+
+        // ── Settings modal ──────────────────────────────────────────────────────
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsBtn = document.getElementById('settings-button');
+        const settingsClose = document.getElementById('settings-close');
+        const settingsBackdrop = document.getElementById('settings-modal-backdrop');
+
+        function applyTheme(theme) {
+            if (theme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else if (theme === 'system') {
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', prefersDark);
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        function setTheme(theme) {
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+            updateThemeButtons(theme);
+        }
+
+        function updateThemeButtons(theme) {
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                const active = btn.dataset.theme === theme;
+                btn.classList.toggle('border-mauve', active);
+                btn.classList.toggle('border-transparent', !active);
+                const icon = btn.querySelector('i');
+                const label = btn.querySelector('span');
+                if (active) {
+                    icon.classList.replace('text-subtext0', 'text-mauve');
+                    label.classList.replace('text-subtext0', 'text-mauve');
+                } else {
+                    icon.classList.replace('text-mauve', 'text-subtext0');
+                    label.classList.replace('text-mauve', 'text-subtext0');
+                }
+            });
+        }
+
+        settingsBtn.addEventListener('click', () => {
+            const current = localStorage.getItem('theme') || 'dark';
+            updateThemeButtons(current);
+            settingsModal.classList.remove('hidden');
+        });
+
+        settingsClose.addEventListener('click', () => settingsModal.classList.add('hidden'));
+        settingsBackdrop.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => setTheme(btn.dataset.theme));
+        });
+
+        // Listen for system theme changes when 'system' is selected
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if ((localStorage.getItem('theme') || 'dark') === 'system') {
+                applyTheme('system');
+            }
+        });
+
+        // ── Bulk select / delete ─────────────────────────────────────────────
+        let selectMode = false;
+
+        function enterSelectMode() {
+            selectMode = true;
+            document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.classList.remove('hidden'));
+            document.getElementById('bulk-bar').classList.remove('hidden');
+            settingsModal.classList.add('hidden');
+            updateBulkCount();
+        }
+
+        function exitSelectMode() {
+            selectMode = false;
+            document.querySelectorAll('.bulk-checkbox').forEach(cb => {
+                cb.classList.add('hidden');
+                cb.checked = false;
+            });
+            document.getElementById('bulk-bar').classList.add('hidden');
+        }
+
+        function updateBulkCount() {
+            const n = document.querySelectorAll('.bulk-checkbox:checked').length;
+            document.getElementById('bulk-count').textContent = n + ' selected';
+        }
+
+        function handleCardClick(e, id, defaultAction) {
+            if (selectMode) {
+                e.stopPropagation();
+                const cb = e.currentTarget.querySelector('.bulk-checkbox');
+                if (cb && e.target !== cb) cb.checked = !cb.checked;
+                updateBulkCount();
+                return;
+            }
+            if (defaultAction) defaultAction();
+        }
+
+        document.getElementById('select-mode-btn').addEventListener('click', enterSelectMode);
+        document.getElementById('bulk-cancel-btn').addEventListener('click', exitSelectMode);
+
+        document.getElementById('bulk-select-all').addEventListener('click', () => {
+            document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = true);
+            updateBulkCount();
+        });
+
+        document.getElementById('bulk-deselect-all').addEventListener('click', () => {
+            document.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+            updateBulkCount();
+        });
+
+        document.querySelectorAll('.bulk-checkbox').forEach(cb => {
+            cb.addEventListener('change', updateBulkCount);
+        });
+
+        document.getElementById('bulk-delete-btn').addEventListener('click', () => {
+            const ids = Array.from(document.querySelectorAll('.bulk-checkbox:checked')).map(cb => cb.dataset.id);
+            if (ids.length === 0) return;
+            showConfirmation(() => {
+                fetch('/api/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ids)
+                }).then(r => {
+                    if (r.ok) {
+                        exitSelectMode();
+                        window.location.reload();
+                    } else {
+                        alert('Some items could not be deleted.');
+                    }
+                }).catch(err => console.error('Bulk delete error:', err));
+            }, `Delete ${ids.length} item${ids.length > 1 ? 's' : ''}?`,
+               `This will permanently delete the selected items.`);
+        });
+
+        // ── Import ───────────────────────────────────────────────────────────
+        document.getElementById('import-file-input').addEventListener('change', function() {
+            const file = this.files[0];
+            if (!file) return;
+            showConfirmation(() => {
+                const fd = new FormData();
+                fd.append('file', file);
+                fetch('/api/import', { method: 'POST', body: fd })
+                    .then(r => {
+                        if (r.ok) {
+                            settingsModal.classList.add('hidden');
+                            window.location.reload();
+                        } else {
+                            r.text().then(t => alert('Import failed: ' + t));
+                        }
+                    })
+                    .catch(err => alert('Import error: ' + err));
+            }, 'Import data?',
+               'This will merge the zip contents into your current data. Existing files with the same name will be overwritten.');
+            this.value = ''; // reset so same file can be re-selected
+        });
+
+        // ── Drag-to-reorder links ────────────────────────────────────────────
+        (function () {
+            const list = document.getElementById('links-list');
+            if (!list) return;
+
+            let dragSrc = null;
+
+            function getDragItem(el) {
+                return el.closest('[draggable="true"]');
+            }
+
+            list.addEventListener('dragstart', (e) => {
+                dragSrc = getDragItem(e.target);
+                if (!dragSrc) return;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', dragSrc.dataset.url);
+                setTimeout(() => dragSrc.classList.add('opacity-40'), 0);
+            });
+
+            list.addEventListener('dragend', (e) => {
+                const item = getDragItem(e.target);
+                if (item) item.classList.remove('opacity-40');
+                list.querySelectorAll('[draggable]').forEach(el => el.classList.remove('ring-2', 'ring-mauve'));
+                dragSrc = null;
+            });
+
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                const target = getDragItem(e.target);
+                if (!target || target === dragSrc) return;
+                list.querySelectorAll('[draggable]').forEach(el => el.classList.remove('ring-2', 'ring-mauve'));
+                target.classList.add('ring-2', 'ring-mauve');
+            });
+
+            list.addEventListener('dragleave', (e) => {
+                const target = getDragItem(e.target);
+                if (target) target.classList.remove('ring-2', 'ring-mauve');
+            });
+
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const target = getDragItem(e.target);
+                if (!target || !dragSrc || target === dragSrc) return;
+
+                // Insert dragSrc before or after target depending on pointer position
+                const rect = target.getBoundingClientRect();
+                const after = e.clientY > rect.top + rect.height / 2;
+                if (after) {
+                    target.after(dragSrc);
+                } else {
+                    target.before(dragSrc);
+                }
+
+                target.classList.remove('ring-2', 'ring-mauve');
+
+                // Persist new order to backend (send full "name|url" lines)
+                const lines = Array.from(list.querySelectorAll('[data-url]')).map(el => {
+                    const n = el.dataset.linkname;
+                    const u = el.dataset.url;
+                    return (n && n !== u) ? n + '|' + u : u;
+                });
+                fetch('/api/reorder-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lines),
+                }).catch(err => console.error('Failed to save link order:', err));
+            });
+        })();
 
         // SSE for live updates
         let evtSource;
@@ -733,10 +1237,14 @@
             evtSource = new EventSource("/api/updates");
             evtSource.onmessage = function(event) {
                 if (event.data === "content_updated") {
-                    const isModalOpen = document.querySelector('#new-item-modal:not(.hidden), #new-link-modal:not(.hidden), #rename-modal:not(.hidden), #view-snippet-modal:not(.hidden), #confirmation-modal:not(.hidden)');
-                    if (!isModalOpen) {
-                        setTimeout(() => { window.location.reload(); }, 250);
+                    // Only block reload if user has actively typed/selected something in the new item form
+                    const newItemOpen = !document.getElementById('new-item-modal').classList.contains('hidden');
+                    const newLinkOpen = !document.getElementById('new-link-modal').classList.contains('hidden');
+                    if ((newItemOpen && hasUnsavedContent()) || newLinkOpen) {
+                        // User is mid-entry — don't interrupt
+                        return;
                     }
+                    setTimeout(() => { window.location.reload(); }, 250);
                 }
             };
             evtSource.onerror = function() {
@@ -746,7 +1254,7 @@
             };
         }
 
-        // SSE connect aftwr page load
+        // SSE connect after page load
         window.addEventListener('load', function() {
             connectSSE();
         });

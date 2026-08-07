@@ -2,30 +2,72 @@
   <img src="assets/logo.svg" alt="Local Content Share Logo" width="200">
   <h1>Local Content Share</h1>
 
-  <a href="https://github.com/tanq16/local-content-share/actions/workflows/binary-build.yml"><img alt="Build Workflow" src="https://github.com/tanq16/local-content-share/actions/workflows/binary-build.yml/badge.svg"></a>&nbsp;<a href="https://github.com/tanq16/local-content-share/actions/workflows/docker-publish.yml"><img alt="Container Workflow" src="https://github.com/tanq16/local-content-share/actions/workflows/docker-publish.yml/badge.svg"></a><br>
-  <a href="https://github.com/Tanq16/local-content-share/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/tanq16/local-content-share"></a>&nbsp;<a href="https://hub.docker.com/r/tanq16/local-content-share"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/tanq16/local-content-share"></a><br><br>
+  <a href="https://github.com/gfunkmonk/local-content-share/actions/workflows/binary-build.yml"><img alt="Build Workflow" src="https://github.com/gfunkmonk/local-content-share/actions/workflows/binary-build.yml/badge.svg"></a>&nbsp;<a href="https://github.com/gfunkmonk/local-content-share/actions/workflows/docker-publish.yml"><img alt="Container Workflow" src="https://github.com/gfunkmonk/local-content-share/actions/workflows/docker-publish.yml/badge.svg"></a><br>
+  <a href="https://github.com/gfunkmonk/local-content-share/releases"><img alt="GitHub Release" src="https://img.shields.io/github/v/release/gfunkmonk/local-content-share"></a>&nbsp;<a href="https://hub.docker.com/r/gfunkmonk/local-content-share"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/gfunkmonk/local-content-share"></a><br><br>
   <a href="#screenshots">Screenshots</a> &bull; <a href="#installation-and-usage">Install & Use</a> &bull; <a href="#tips-and-notes">Tips & Notes</a>
 </div>
 
 ---
 
-A simple & elegant self-hosted app for **storing/sharing text snippets, files, and links** in your **local network** with **no setup on client devices**. Think of this as an *all-in-one alternative* to **airdrop**, **local-pastebin**, and a **scratchpad**. The primary features are:
+A simple & elegant self-hosted app for **storing/sharing text snippets, files, and links** in your **local network** with **no setup on client devices**. Think of this as an *all-in-one alternative* to **airdrop**, **local-pastebin**, and a **scratchpad**.
 
-- Make plain text **snippets** available to **view/share** on any device in the local network
-- **Upload files** and make them available to **view/download** on any device in the local network
-- **Store links** to **share** in last in, first show order in its own section
-- Built-in **Notepad** with **Markdown** editing and preview capabilities
-- **Rename** text snippets and files uploaded to easily find them in the UI
-- **Edit** text snippets to modify their content as needed
-- **Multi-file** **drag-n-drop** support for uploading files
-- Configurable **expiration (or TTL, i.e., time to live)** per file/snippet for Never, 1 hour, 4 hours, 1 day, or Custom
-- Use of **SSE** to automatically inform all clients of new/deleted/edited files
-- Completely **local assets**, so the app works in your network even without internet
-- **Multi-arch** (x86-64 and ARM64) **Docker image** for **homelab** deployments
-- Frontend accessible via **browsers** and as a **PWA** (progressive web apps)
-- Clean, modern interface with **automatic light/dark** Catppuccin themed UI that looks good on mobile too
+## Features
 
-Make sure to look into [Tips & Notes](#tips-and-notes) if you have questions about individual functionalities.
+### Snippets
+- Create, edit, rename, and delete plain text snippets
+- **Syntax highlighting** in the viewer for 35+ languages — language is detected from the filename extension
+- **Copy content** or **copy raw URL** (`/raw/text/filename`) to share a direct link to the plain text
+- View snippets in a modal with a close button or Escape key
+
+### Files
+- Upload files via click, drag-and-drop, or clipboard paste
+- **Image thumbnails** shown inline on file cards
+- **Video thumbnails** generated from the first frame of the video
+- **File type icons** for non-image/video files (PDF, archive, code, audio, etc.)
+- Viewable files (images, video, audio, PDF, text, code) open in-browser by clicking the thumbnail or icon
+- **Download** files with a single click; **copy the download URL** to share with others on the LAN
+- When uploading with a custom name, the original file's extension is automatically appended
+- Rename files in-place
+
+### Links
+- Store and share URLs with an optional **display name** separate from the URL
+- **Globe icon** and truncation with tooltip on long URLs
+- **Drag to reorder** links — new order persists across page loads
+- Edit or delete individual links
+
+### Notepad
+- Persistent markdown scratchpad shared across all devices
+- Toggle between edit and reader (rendered preview) modes
+- Undo/redo history; content auto-saves after a period of inactivity
+
+### Organisation
+- **Sort** snippets and files by name, size, or date — sort preference saved in `localStorage`
+- **Empty state messages** when a section has no content
+- Expiration (TTL) per file or snippet: Never, 1 hour, 4 hours, 1 day, or Custom format (`34m`, `3w`, `2M`, `11d`)
+- Set a default expiry with the `DEFAULT_EXPIRY` environment variable
+
+### Settings
+- **Dark / Light / System** theme toggle — dark is the default; preference saved in `localStorage`
+- **Export** all data as a `.zip` archive (files, snippets, links, notepad, expirations)
+- **Import** a previously exported `.zip` to restore or merge data
+- **Bulk delete** — enable bulk delete mode from Settings, check items across all sections, delete in one action
+
+### Live Updates & UX
+- **SSE** (Server-Sent Events) keeps all open clients in sync — new/edited/deleted content appears automatically
+- **Reconnects** when a tab becomes visible again after being hidden
+- Sort preferences, theme, and layout survive page reloads via `localStorage`
+- Card **entrance animations** with a subtle stagger
+- Escape key closes any open modal
+- Confirm before closing the new item form if unsaved content is present
+- **PWA** (Progressive Web App) support — installable on mobile and desktop
+
+### Security & Reliability
+- Path traversal protection on all file-serving endpoints
+- File names are sanitized — only filesystem-illegal characters (`/ \ : * ? " < > |`) are replaced
+- Expiration tracker uses a read/write mutex to avoid deadlocks under concurrent access
+- MIME type detection via the standard library with content sniffing fallback
+
+---
 
 > [!NOTE]
 > This application is meant to be deployed within your homelab only. There is no authentication mechanism implemented. If you are exposing to the public, ensure there is authentication fronting it and non-destructive users using it.
@@ -50,7 +92,7 @@ mkdir $HOME/.localcontentshare
 docker run --name local-content-share \
   -p 8080:8080 \
   -v $HOME/.localcontentshare:/app/data \
-  tanq16/local-content-share:main
+  gfunkmonk/local-content-share:main
 ```
 
 The application will be available at `http://localhost:8080` (or your server IP).
@@ -60,85 +102,108 @@ You can also use the following compose file with container managers like Portain
 ```yaml
 services:
   contentshare:
-    image: tanq16/local-content-share:main
+    image: gfunkmonk/local-content-share:main
     container_name: local-content-share
     volumes:
-      - /home/tanq/lcshare:/app/data # Change as needed
+      - /home/user/lcshare:/app/data # Change as needed
     ports:
       - 8080:8080
 ```
 
 ### Using Binary
 
-Download the appropriate binary for your system from the [latest release](https://github.com/tanq16/local-content-share/releases/latest).
+Download the appropriate binary for your system from the [latest release](https://github.com/gfunkmonk/local-content-share/releases/latest).
 
-Make the binary executable (for Linux/macOS) with `chmod +x local-content-share-*` and then run the binary with `./local-content-share-*`. The application will be available at `http://localhost:8080`.
+Binaries are provided for:
 
-### Local development
+| OS | Architectures |
+|---|---|
+| Linux | amd64, arm64, armv6, armv7, 386, riscv64, and more |
+| macOS | amd64, arm64 |
+| Windows | amd64, arm64, armv6, armv7, 386 |
+| FreeBSD / NetBSD / OpenBSD | amd64, arm64, arm, 386 |
 
-With `Go 1.23+` installed, run the following to download the binary to your GOBIN:
+Make the binary executable (Linux/macOS) with `chmod +x local-content-share-*` and run it. The app will be available at `http://localhost:8080`.
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--listen` | `:8080` | `host:port` the server listens on |
+
+### Local Development
+
+With `Go 1.23+` installed:
 
 ```bash
-go install github.com/tanq16/local-content-share@latest
+git clone https://github.com/gfunkmonk/local-content-share.git
+cd local-content-share
+go build .
+./local-content-share
 ```
 
-Or, you can build from source like so:
+Or install directly to your `GOBIN`:
 
 ```bash
-git clone https://github.com/tanq16/local-content-share.git && \
-cd local-content-share && \
-go build .
+go install github.com/gfunkmonk/local-content-share@latest
 ```
 
 ## Tips and Notes
 
-- To share text content:
-   - Type or paste your text in the text area (the upload button will change to a submit button)
-   - (OPTIONAL) type the name of the snippet (otherwise it will name it as a time string)
-   - Click the submit button (looks like the telegram arrow) to upload the snippet
-- To rename files or text snippets:
-   - Click the cursor (i-beam) icon and provide the new name
-   - It will automatically prepend 4 random digits if the name isn't unique
-- To edit existing snippets:
-   - Click the pen icon and it will populate the expandable text area with the content
-   - Write the new content and click accept or deny (check or cross) in the same text area
-   - On accepting, it will edit the content; on denying, it will refresh the page
-- To share files:
-   - Click the upload button and select your file
-   - OR drag and drop your file (even multiple files) to the text area
-   - OR click into the text area and paste a file or screenshot from clipboard
-   - It will automatically append 4 random digits if filename isn't unique
-- To view content, click the eye icon:
-   - For text content, it shows the raw text, which can be copied with a button on top
-   - For files, it shows raw text, images, PDFs, etc. (basically whatever the browser will do)
-- To download files, click the download icon
-- To delete content, click the trash icon
-- To set expiration for a file or snippet
-   - Click the clock icon with the "Never" text (signifying no expiry) to cycle between times
-   - For a non-"Never" expiration, the file will automatically be removed after the specified period
-   - Set the cycling button to 1 hour, 4 hours, 1 day, or Custom before adding a snippet or file
-      - The Custom option will prompt to ask for the expiry after you click submit/upload
-      - The value for custom expiration can be of the format `NT` (eg. `34m`, `3w`, `2M`, `11d`)
-      - N is the number and T is the time denomination (m=minute, h=hour, d=day, w=week, M=month, y=year)
-   - Use the `DEFAULT_EXPIRY` environment variable to set a default expiration (follows format of Custom specified above)
-      - This value will be set as default on the home page instead of `Never`
-      - The other options will still be available by cycling if needed
-- The Notepad is for writing something quickly and getting back to it from any device
-   - It supports both markdown edit and preview modes
-   - Content is automatically saved upon inactivity in the backend and will load as is on any device
+### Snippets
+- Type or paste text into the content area and click **Submit** to save a snippet
+- Optionally provide a name — otherwise it defaults to a timestamp
+- Click the **pen icon** to edit both the content and the name of a snippet in one step
+- Click a snippet card to open a viewer with syntax highlighting
+- Click the **copy icon** to copy the content, or the **link icon** to copy the raw URL
+
+### Files
+- Click the upload area, drag files onto it, or paste an image from your clipboard
+- When providing a custom name, the original extension is automatically appended on blur or submit
+- Click the **thumbnail or icon** on the left of a card to view the file in a new tab (images, video, PDF, text, etc.)
+- Click the **download icon** to save the file, or the **link icon** to copy the download URL
+
+### Links
+- Click **Link** to add a URL with an optional display name
+- Hover over a truncated URL to see the full address in a tooltip
+- Drag the grip handle on the left to reorder links — the order persists on the server
+- Click the **pen icon** on a link card to edit both its name and URL
+
+### Bulk Delete
+1. Open **Settings** (gear icon, top-right)
+2. Click **Select items**
+3. Check the items you want to delete across any section
+4. Click **Delete selected** in the floating bar at the bottom
+5. Click **Cancel** to exit select mode without deleting
+
+### Export & Import
+- **Export**: Settings → *Export all data* — downloads a `.zip` containing all files, snippets, links, the notepad, and expiration data
+- **Import**: Settings → *Import data* — select a previously exported `.zip`; contents are merged into the current data directory (existing files with the same name are overwritten)
+
+### Expiration (TTL)
+- Click the **clock / expiry button** in the new item form to cycle through: Never → 1 hour → 4 hours → 1 day → Custom
+- Custom format: `NT` where N is a number and T is `m` (minute), `h` (hour), `d` (day), `w` (week), `M` (month), or `y` (year) — e.g. `30m`, `2d`, `1w`
+- Set `DEFAULT_EXPIRY` environment variable to change the default (e.g. `DEFAULT_EXPIRY=1d`)
+
+### Theme
+- Open **Settings** and choose Dark, Light, or System
+- Dark is the default for new users; the preference is saved in `localStorage`
+
+### Notepad
+- Persistent markdown editor shared across all connected devices
+- Toggle between **write** and **reader** (rendered markdown) mode with the book icon
+- Content auto-saves after ~2 seconds of inactivity; also saved on page close
 
 ### A Note on Reverse Proxies
 
-Reverse proxies are fairly common in homelab settings to assign SSL certificates and use domains. The reason for this note is that some reverse proxy settings may interfere with the functioning of this app. Primarily, there are 2 features that could be affected:
+Reverse proxies are fairly common in homelab settings. Two features can be affected:
 
-- File Size: reverse proxy software may impose a limit on file sizes, but Local Content Share does not
-- Upload Progress: file upload progress for large files may not be visible until the file has been uploaded because of buffering setups on rever proxy software
+- **File size**: reverse proxy software may impose upload size limits; Local Content Share does not
+- **Upload progress**: buffering in some proxy configs delays progress bar updates until upload completes
 
-Following is a sample fix for Nginx Proxy Manager, please look into equivalent settings for other reverse proxy setups like Caddy.
+Sample fix for Nginx Proxy Manager — in the proxy host's Advanced tab:
 
-For the associated proxy host in NPM, click Edit and visit the Advanced tab. There, paste the following custom configuration:
-
-```
+```nginx
 client_max_body_size 5G;
 proxy_request_buffering off;
 proxy_buffering off;
@@ -147,8 +212,18 @@ proxy_send_timeout 3600s;
 proxy_connect_timeout 3600s;
 ```
 
-This configuration will set the maximum accept size for file transfer through NPM as 5 GB and will also disable buffering so interaction will take place directly with Local Content Share.
-
 ### Backend Data Structure
 
-The application creates a `data` directory to store all uploaded files, text snippets, notepad notes, and links (in `files/`, `text/`, `md.file`, and `links.file` respectively). File expirations are saved in an `expiration.json` file in the data directory. Make sure the application has write permissions for the directory where it runs.
+The `data` directory holds all content:
+
+```
+data/
+  files/          uploaded files
+  text/           text snippets
+  notepad/
+    md.file       notepad content
+  links.file      stored links (name|url or bare url, one per line)
+  expirations.json  expiration timestamps
+```
+
+The app needs write permissions for the directory it runs in.
