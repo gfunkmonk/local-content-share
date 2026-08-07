@@ -127,7 +127,7 @@ func parseCustomDuration(customExpiry string) time.Duration {
 	if err != nil {
 		return 5 * time.Minute
 	}
-	unit := strings.ToLower(matches[2])
+	unit := matches[2]
 	switch unit {
 	case "m": // minutes
 		if value < 5 {
@@ -1119,6 +1119,9 @@ func main() {
 			if err != nil || info.IsDir() {
 				return nil
 			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return nil
+			}
 			rel := filepath.ToSlash(strings.TrimPrefix(path, "data"+string(filepath.Separator)))
 			f, err := zw.Create(rel)
 			if err != nil {
@@ -1167,10 +1170,13 @@ func main() {
 			}
 			// Sanitize path — must not escape data dir
 			cleanName := filepath.Clean(f.Name)
-			if strings.Contains(cleanName, "..") {
+			if filepath.IsAbs(cleanName) {
 				continue
 			}
-			destPath := filepath.Join("data", cleanName)
+			destPath, err := dataPath(cleanName)
+			if err != nil {
+				continue
+			}
 			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 				continue
 			}
@@ -1178,9 +1184,14 @@ func main() {
 			if err != nil {
 				continue
 			}
-			data, _ := io.ReadAll(rc)
+			data, readErr := io.ReadAll(rc)
 			rc.Close()
-			os.WriteFile(destPath, data, 0644)
+			if readErr != nil {
+				continue
+			}
+			if err := os.WriteFile(destPath, data, 0644); err != nil {
+				continue
+			}
 		}
 		// Reload expiration tracker after import
 		expirationTracker.Reload()
