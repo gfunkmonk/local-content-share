@@ -1168,15 +1168,21 @@ func main() {
 			if f.FileInfo().IsDir() {
 				continue
 			}
-			// Sanitize path — must not escape data dir
-			cleanName := filepath.Clean(f.Name)
-			if filepath.IsAbs(cleanName) {
+			// Sanitize path — only allow known app data targets under data/
+			cleanPath := filepath.Clean(filepath.FromSlash(f.Name))
+			if !filepath.IsLocal(cleanPath) || strings.Contains(cleanPath, "..") {
 				continue
 			}
-			destPath, err := dataPath(cleanName)
-			if err != nil {
+			cleanName := filepath.ToSlash(cleanPath)
+			switch {
+			case cleanName == "links.file", cleanName == "expirations.json":
+			case strings.HasPrefix(cleanName, "files/"),
+				strings.HasPrefix(cleanName, "text/"),
+				strings.HasPrefix(cleanName, "notepad/"):
+			default:
 				continue
 			}
+			destPath := filepath.Join("data", filepath.FromSlash(cleanName))
 			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 				continue
 			}
