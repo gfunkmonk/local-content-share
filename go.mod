@@ -1,3 +1,3 @@
 module github.com/gfunkmonk/local-content-share
 
-go 1.26
+go 1.23

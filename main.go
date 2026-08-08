@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"compress/flate"
 	"bytes"
 	"embed"
 	"encoding/json"
@@ -242,6 +243,7 @@ func (t *ExpirationTracker) CleanupExpired() []string {
 }
 
 var listenAddress = flag.String("listen", ":8080", "host:port in which the server will listen")
+var instanceTitle = flag.String("title", "", "custom title shown in the UI (overrides INSTANCE_TITLE env var)")
 
 // Placeholder content for notepad files
 const mdPlaceholder = `# Welcome to Markdown Notepad
@@ -364,8 +366,24 @@ func notifyContentChange() {
 	}
 }
 
+// templateData wraps the data passed to all templates so they can
+// access both the entry list and global settings like the instance title.
+type templateData struct {
+	Entries []Entry
+	Title   string
+}
+
 func main() {
 	flag.Parse()
+
+	// Resolve instance title: flag > env > default
+	title := *instanceTitle
+	if title == "" {
+		title = os.Getenv("INSTANCE_TITLE")
+	}
+	if title == "" {
+		title = "Local-Content-Share"
+	}
 
 	if err := os.MkdirAll(filepath.Join("data", "files"), 0755); err != nil {
 		log.Fatal(err)
@@ -497,11 +515,11 @@ func main() {
 				})
 			}
 		}
-		tmpl.ExecuteTemplate(w, "index.html", entries)
+		tmpl.ExecuteTemplate(w, "index.html", templateData{Entries: entries, Title: title})
 	})
 
 	http.HandleFunc("/md", func(w http.ResponseWriter, r *http.Request) {
-		tmpl.ExecuteTemplate(w, "md.html", nil)
+		tmpl.ExecuteTemplate(w, "md.html", templateData{Title: title})
 	})
 
 	// Retrieve custom expiration options
@@ -756,6 +774,38 @@ func main() {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Write(data)
+	})
+
+	// Share page — read-only syntax-highlighted view of a text snippet
+	http.HandleFunc("/share/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/share/")
+		if !strings.HasPrefix(id, "text/") {
+			http.Error(w, "Only text snippets can be shared", http.StatusBadRequest)
+			return
+		}
+		filePath, err := dataPath(id)
+		if err != nil {
+			http.Error(w, "Invalid path", http.StatusBadRequest)
+			return
+		}
+		fileData, err := os.ReadFile(filePath)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		filename := filepath.Base(id)
+		type shareData struct {
+			Title    string
+			Filename string
+			Content  string
+			RawURL   string
+		}
+		tmpl.ExecuteTemplate(w, "share.html", shareData{
+			Title:    title,
+			Filename: filename,
+			Content:  string(fileData),
+			RawURL:   "/raw/" + id,
+		})
 	})
 
 	http.HandleFunc("/download/", func(w http.ResponseWriter, r *http.Request) {
@@ -1110,37 +1160,51 @@ func main() {
 		log.Printf("Bulk deleted %d items\n", len(ids)-len(errs))
 	})
 
-	// Export all data as a zip
-	http.HandleFunc("/api/export", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/zip")
-		w.Header().Set("Content-Disposition", `attachment; filename="lcs-export.zip"`)
-		zw := zip.NewWriter(w)
-		defer zw.Close()
-		filepath.Walk("data", func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if info.Mode()&os.ModeSymlink != 0 {
-				return nil
-			}
-			rel := filepath.ToSlash(strings.TrimPrefix(path, "data"+string(filepath.Separator)))
-			f, err := zw.Create(rel)
-			if err != nil {
-				return nil
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-			f.Write(data)
-			return nil
-		})
-		log.Println("Exported data as zip")
+// Export all data as a zip
+http.HandleFunc("/api/export", func(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Format filename with current date: lcs-export-MM-DD-YEAR-HOURMINUTEAM/PM.zip
+	dateStr := time.Now().Format("01-02-2006-0304PM")
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="lcs-export-%s.zip"`, dateStr))
+
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+
+	// Register maximum compression (flate.BestCompression) for DEFLATE
+	zw.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
+		return flate.NewWriter(out, flate.BestCompression)
 	})
+
+	filepath.Walk("data", func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		rel := filepath.ToSlash(strings.TrimPrefix(path, "data"+string(filepath.Separator)))
+		f, err := zw.Create(rel)
+		if err != nil {
+			return nil
+		}
+
+		// Stream file contents instead of ReadFile to reduce memory usage
+		src, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer src.Close()
+
+		_, err = io.Copy(f, src)
+		return nil
+	})
+	log.Println("Exported data as zip")
+})
 
 	// Import data from a zip upload
 	http.HandleFunc("/api/import", func(w http.ResponseWriter, r *http.Request) {

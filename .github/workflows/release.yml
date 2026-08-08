@@ -1,0 +1,20 @@
+name: Release & Docker
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  binaries:
+    uses: ./.github/workflows/binary-build.yml
+    with:
+      delivery_type: Release
+    secrets: inherit
+
+  docker:
+    needs: binaries
+    uses: ./.github/workflows/docker-publish.yml
+    secrets: inherit

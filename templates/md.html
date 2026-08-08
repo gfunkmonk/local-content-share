@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notepad</title>
+    <title>{{.Title}} — Notepad</title>
     <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
     <link href="/static/css/inter.css" rel="stylesheet">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -101,7 +101,7 @@
     <div class="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">
         <!-- Header with title and controls -->
         <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <h1 class="text-2xl sm:text-3xl font-bold text-mauve">Notepad</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-mauve">{{.Title}} — Notepad</h1>
             <div class="flex items-center gap-2">
                 <a href="/" class="flex items-center justify-center sm:justify-start gap-2 w-10 sm:w-auto h-10 sm:px-3 bg-base hover:bg-surface0 rounded-xl cursor-pointer transition-all duration-200 no-underline" title="Back to Home">
                     <i class="fas fa-arrow-left text-subtext0"></i>

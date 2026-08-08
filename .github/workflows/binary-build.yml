@@ -11,6 +11,13 @@ on:
         options:
           - 'Artifact'
           - 'Release'
+  workflow_call:
+    inputs:
+      delivery_type:
+        description: 'Choose build output target'
+        required: true
+        default: 'Release'
+        type: string
 
 permissions:
   contents: write
@@ -109,7 +116,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.23'
 
       - name: Build Binary
         run: |

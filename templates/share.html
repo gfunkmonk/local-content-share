@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Filename}} — {{.Title}}</title>
+    <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
+    <link href="/static/css/inter.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
+    <link rel="stylesheet" href="/static/css/catppuccin-mocha.css" media="(prefers-color-scheme: dark)">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <style>
+        :root {
+            --rosewater: #dc8a78; --flamingo: #dd7878; --pink: #ea76cb;
+            --mauve: #8839ef; --red: #d20f39; --maroon: #e64553;
+            --peach: #fe640b; --yellow: #df8e1d; --green: #40a02b;
+            --teal: #179299; --sky: #04a5e5; --sapphire: #209fb5;
+            --blue: #1e66f5; --lavender: #7287fd; --text: #4c4f69;
+            --subtext1: #5c5f77; --subtext0: #6c6f85; --overlay2: #7c7f93;
+            --overlay1: #8c8fa1; --overlay0: #9ca0b0; --surface2: #acb0be;
+            --surface1: #bcc0cc; --surface0: #ccd0da; --base: #eff1f5;
+            --mantle: #e6e9ef; --crust: #dce0e8;
+        }
+        html.dark {
+            --rosewater: #f5e0dc; --flamingo: #f2cdcd; --pink: #f5c2e7;
+            --mauve: #cba6f7; --red: #f38ba8; --maroon: #eba0ac;
+            --peach: #fab387; --yellow: #f9e2af; --green: #a6e3a1;
+            --teal: #94e2d5; --sky: #89dceb; --sapphire: #74c7ec;
+            --blue: #89b4fa; --lavender: #b4befe; --text: #cdd6f4;
+            --subtext1: #bac2de; --subtext0: #a6adc8; --overlay2: #9399b2;
+            --overlay1: #7f849c; --overlay0: #6c7086; --surface2: #585b70;
+            --surface1: #45475a; --surface0: #313244; --base: #1e1e2e;
+            --mantle: #181825; --crust: #11111b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--crust);
+            color: var(--text);
+            min-height: 100vh;
+            margin: 0;
+        }
+    </style>
+    <script>
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else if (saved === 'system') {
+                if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+                    document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <script src="/static/js/highlight.min.js"></script>
+    <script src="/static/js/tailwindcss.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'mauve': 'var(--mauve)', 'blue': 'var(--blue)',
+                        'sapphire': 'var(--sapphire)', 'text': 'var(--text)',
+                        'subtext0': 'var(--subtext0)', 'subtext1': 'var(--subtext1)',
+                        'overlay1': 'var(--overlay1)', 'surface0': 'var(--surface0)',
+                        'surface1': 'var(--surface1)', 'base': 'var(--base)',
+                        'mantle': 'var(--mantle)', 'crust': 'var(--crust)',
+                        'green': 'var(--green)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-crust text-text antialiased">
+
+    <div class="container mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+
+        <header class="flex items-center justify-between mb-6 gap-4">
+            <div class="min-w-0">
+                <h1 class="text-xl font-semibold text-text truncate" title="{{.Filename}}">{{.Filename}}</h1>
+                <p class="text-xs text-subtext0 mt-0.5">{{.Title}}</p>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button id="copy-btn" class="flex items-center gap-2 px-3 py-2 bg-blue hover:bg-sapphire text-crust font-medium rounded-xl transition-colors text-sm">
+                    <i class="fas fa-copy"></i>
+                    <span>Copy</span>
+                </button>
+                <a href="{{.RawURL}}" class="flex items-center gap-2 px-3 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors text-sm no-underline" title="Raw text">
+                    <i class="fas fa-code"></i>
+                    <span class="hidden sm:inline">Raw</span>
+                </a>
+                <a href="/" class="flex items-center gap-2 px-3 py-2 bg-base hover:bg-surface0 text-subtext0 rounded-xl transition-colors text-sm no-underline" title="Back to {{.Title}}">
+                    <i class="fas fa-arrow-left"></i>
+                    <span class="hidden sm:inline">Home</span>
+                </a>
+            </div>
+        </header>
+
+        <main>
+            <div class="bg-mantle rounded-2xl overflow-auto">
+                <pre class="p-5 m-0"><code id="content" class="text-sm leading-relaxed"></code></pre>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        const filename = {{.Filename | js}};
+        const rawURL = {{.RawURL | js}};
+
+        // Fetch content from raw endpoint to avoid template escaping issues
+        fetch(rawURL)
+            .then(r => r.text())
+            .then(raw => {
+                const codeEl = document.getElementById('content');
+                // Detect language from extension
+                const EXT_LANG = {
+                    js: 'javascript', mjs: 'javascript', ts: 'typescript', tsx: 'typescript',
+                    py: 'python', rb: 'ruby', rs: 'rust', go: 'go', java: 'java',
+                    kt: 'kotlin', c: 'c', h: 'c', cpp: 'cpp', hpp: 'cpp',
+                    cs: 'csharp', php: 'php', swift: 'swift', sh: 'bash', bash: 'bash',
+                    zsh: 'bash', ps1: 'powershell', html: 'html', htm: 'html',
+                    xml: 'xml', css: 'css', scss: 'scss', json: 'json',
+                    yaml: 'yaml', yml: 'yaml', toml: 'toml', md: 'markdown',
+                    sql: 'sql', ini: 'ini', conf: 'ini', env: 'ini',
+                };
+                const ext = filename.split('.').pop().toLowerCase();
+                const lang = EXT_LANG[ext];
+                if (lang && hljs.getLanguage(lang)) {
+                    codeEl.innerHTML = hljs.highlight(raw, { language: lang }).value;
+                    codeEl.className = 'hljs language-' + lang + ' text-sm leading-relaxed';
+                } else {
+                    codeEl.textContent = raw;
+                }
+
+                // Copy button
+                document.getElementById('copy-btn').addEventListener('click', function() {
+                    navigator.clipboard.writeText(raw).then(() => {
+                        this.innerHTML = '<i class="fas fa-check"></i><span>Copied</span>';
+                        setTimeout(() => {
+                            this.innerHTML = '<i class="fas fa-copy"></i><span>Copy</span>';
+                        }, 2000);
+                    });
+                });
+            })
+            .catch(err => {
+                document.getElementById('content').textContent = 'Failed to load content.';
+                console.error(err);
+            });
+    </script>
+</body>
+</html>

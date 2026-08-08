@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Local Content Share</title>
+    <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/fontawesome/css/all.min.css">
     <link href="/static/css/inter.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/catppuccin-latte.css" media="(prefers-color-scheme: light)">
@@ -113,7 +113,7 @@
     <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
 
         <header class="text-center mb-8 relative">
-            <h1 class="text-3xl sm:text-4xl font-bold text-mauve">Local-Content-Share</h1>
+            <h1 class="text-3xl sm:text-4xl font-bold text-mauve">{{.Title}}</h1>
             <button id="settings-button" type="button" class="absolute top-0 right-0 w-9 h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Settings">
                 <i class="fas fa-gear"></i>
             </button>
@@ -154,7 +154,7 @@
                     </div>
                 </div>
                 <div id="snippets-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{range .}}{{if eq .Type "text"}}
+                    {{range .Entries}}{{if eq .Type "text"}}
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 relative cursor-pointer card-animate" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="handleCardClick(event, '{{.ID}}', () => showViewModal('{{.ID}}', '{{.Filename}}'))">
                         <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-2 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
                         <div class="truncate mr-2">
@@ -165,12 +165,13 @@
                             <button onclick="event.stopPropagation(); showEditForm('{{.ID}}', '{{.Filename}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Edit"><i class="fas fa-pen"></i></button>
                             <button onclick="event.stopPropagation(); copyToClipboard('{{.Content}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy content"><i class="fas fa-copy"></i></button>
                             <button onclick="event.stopPropagation(); copyToClipboard(window.location.origin + '/raw/{{.ID}}', this)" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Copy raw URL"><i class="fas fa-link"></i></button>
+                            <a href="/share/{{.ID}}" target="_blank" onclick="event.stopPropagation()" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors no-underline" title="Share page"><i class="fas fa-arrow-up-right-from-square"></i></a>
                             <button onclick="event.stopPropagation(); deleteItem('{{.ID}}')" class="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-base hover:bg-surface0 text-subtext0 rounded-full transition-colors" title="Delete"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
                     {{end}}{{end}}
                 </div>
-                {{$hasSnippets := false}}{{range .}}{{if eq .Type "text"}}{{$hasSnippets = true}}{{end}}{{end}}
+                {{$hasSnippets := false}}{{range .Entries}}{{if eq .Type "text"}}{{$hasSnippets = true}}{{end}}{{end}}
                 {{if not $hasSnippets}}
                 <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
                     <i class="fas fa-pen-nib text-2xl"></i>
@@ -195,23 +196,23 @@
                     </div>
                 </div>
                 <div id="files-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {{range .}}{{if eq .Type "file"}}
+                    {{range .Entries}}{{if eq .Type "file"}}
                     <div class="flex items-center justify-between bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 card-animate" data-name="{{.Filename}}" data-size="{{.Size}}" data-date="{{.ModTime}}" data-entry-id="{{.ID}}" onclick="handleCardClick(event, '{{.ID}}', null)">
                         <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-2 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
                         {{if .IsImage}}
-                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                        <button onclick="event.stopPropagation(); showFilePreview('/view/{{.ID}}', '{{.Filename}}', 'image')" class="flex-shrink-0 mr-3 bg-transparent border-0 p-0 cursor-pointer" title="View {{.Filename}}">
                             <img src="/view/{{.ID}}" alt="{{.Filename}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" loading="lazy">
-                        </a>
+                        </button>
                         {{else if .IsVideo}}
-                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                        <button onclick="event.stopPropagation(); showFilePreview('/view/{{.ID}}', '{{.Filename}}', 'video')" class="flex-shrink-0 mr-3 bg-transparent border-0 p-0 cursor-pointer" title="View {{.Filename}}">
                             <video src="/view/{{.ID}}" class="h-12 w-12 object-cover rounded-xl bg-surface0" preload="metadata" muted playsinline onloadedmetadata="this.currentTime=1"></video>
-                        </a>
+                        </button>
                         {{else if .IsViewable}}
-                        <a href="/view/{{.ID}}" target="_blank" class="flex-shrink-0 mr-3 no-underline" title="View {{.Filename}}">
+                        <button onclick="event.stopPropagation(); showFilePreview('/view/{{.ID}}', '{{.Filename}}', 'other')" class="flex-shrink-0 mr-3 bg-transparent border-0 p-0 cursor-pointer" title="View {{.Filename}}">
                             <div class="w-12 h-12 flex items-center justify-center rounded-2xl bg-surface0 hover:bg-surface1 transition-colors">
                                 <i class="fas {{.FileIcon}} text-[2rem] text-overlay1"></i>
                             </div>
-                        </a>
+                        </button>
                         {{else}}
                         <div class="flex-shrink-0 mr-3 w-12 h-12 flex items-center justify-center rounded-2xl bg-surface0">
                             <i class="fas {{.FileIcon}} text-[2rem] text-overlay1"></i>
@@ -231,7 +232,7 @@
                     </div>
                     {{end}}{{end}}
                 </div>
-                {{$hasFiles := false}}{{range .}}{{if eq .Type "file"}}{{$hasFiles = true}}{{end}}{{end}}
+                {{$hasFiles := false}}{{range .Entries}}{{if eq .Type "file"}}{{$hasFiles = true}}{{end}}{{end}}
                 {{if not $hasFiles}}
                 <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
                     <i class="fas fa-folder-open text-2xl"></i>
@@ -246,7 +247,7 @@
                     <h2 class="text-2xl font-semibold text-text">Links</h2>
                 </div>
                 <div id="links-list" class="flex flex-col gap-2">
-                    {{range .}}{{if eq .Type "link"}}
+                    {{range .Entries}}{{if eq .Type "link"}}
                     <div class="flex items-center gap-2 bg-base border border-transparent hover:border-surface1 rounded-3xl px-4 py-2 transition-colors duration-300 group card-animate" data-name="{{.LinkName}}" data-entry-id="{{.ID}}" data-url="{{.Content}}" data-linkname="{{.LinkName}}" draggable="true">
                         <input type="checkbox" class="bulk-checkbox hidden flex-shrink-0 mr-1 w-4 h-4 accent-mauve cursor-pointer" data-id="{{.ID}}" onclick="event.stopPropagation()">
                         <span class="drag-handle cursor-grab active:cursor-grabbing text-overlay1 hover:text-subtext0 flex-shrink-0 px-1 touch-none select-none" title="Drag to reorder"><i class="fas fa-align-justify"></i></span>
@@ -262,7 +263,7 @@
                     </div>
                     {{end}}{{end}}
                 </div>
-                {{$hasLinks := false}}{{range .}}{{if eq .Type "link"}}{{$hasLinks = true}}{{end}}{{end}}
+                {{$hasLinks := false}}{{range .Entries}}{{if eq .Type "link"}}{{$hasLinks = true}}{{end}}{{end}}
                 {{if not $hasLinks}}
                 <div class="flex flex-col items-center justify-center py-10 text-overlay1 gap-2">
                     <i class="fas fa-link text-2xl"></i>
@@ -385,6 +386,28 @@
         </div>
     </div>
 
+    <!-- File Preview Modal -->
+    <div id="file-preview-modal" class="hidden fixed inset-0 bg-black/80 flex flex-col items-center justify-center z-50 p-4">
+        <div class="w-full max-w-5xl flex flex-col h-full max-h-[90vh]">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-3 flex-shrink-0">
+                <h3 id="file-preview-title" class="text-base font-medium text-white truncate mr-4"></h3>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <a id="file-preview-open" href="#" target="_blank" class="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors text-sm no-underline">
+                        <i class="fas fa-arrow-up-right-from-square"></i>
+                        <span class="hidden sm:inline">Open</span>
+                    </a>
+                    <button id="file-preview-close" class="flex items-center justify-center w-8 h-8 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Content -->
+            <div id="file-preview-content" class="flex-1 min-h-0 flex items-center justify-center rounded-2xl overflow-hidden bg-mantle">
+            </div>
+        </div>
+    </div>
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="hidden fixed inset-0 bg-overlay2/70 dark:bg-black/70 flex items-center justify-center max-w-full p-4 z-50">
         <div id="settings-modal-backdrop" class="absolute inset-0"></div>
@@ -404,6 +427,18 @@
                     <button data-theme="system" class="theme-btn flex-1 flex flex-col items-center gap-2 px-3 py-3 rounded-2xl border-2 border-transparent bg-base hover:bg-surface0 transition-colors cursor-pointer">
                         <i class="fas fa-circle-half-stroke text-subtext0 text-lg"></i>
                         <span class="text-xs text-subtext0 font-medium">System</span>
+                    </button>
+                </div>
+            </div>
+            <div class="mb-6">
+                <p class="text-sm text-subtext1 mb-3">Playback</p>
+                <div class="flex items-center justify-between px-4 py-3 bg-base rounded-2xl">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-play text-subtext0"></i>
+                        <span class="text-sm text-subtext0 font-medium">Autoplay video preview</span>
+                    </div>
+                    <button id="autoplay-toggle" type="button" class="relative w-10 h-6 rounded-full transition-colors duration-200 focus:outline-none" title="Toggle video autoplay">
+                        <span id="autoplay-thumb" class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"></span>
                     </button>
                 </div>
             </div>
@@ -944,6 +979,7 @@
             if (!newLinkModal.classList.contains('hidden')) { newLinkModal.classList.add('hidden'); return; }
             if (!renameModal.classList.contains('hidden')) { renameModal.classList.add('hidden'); return; }
             if (!viewSnippetModal.classList.contains('hidden')) { viewSnippetModal.classList.add('hidden'); return; }
+            if (!filePreviewModal.classList.contains('hidden')) { closeFilePreview(); return; }
             if (!settingsModal.classList.contains('hidden')) { settingsModal.classList.add('hidden'); return; }
             if (!editLinkModal.classList.contains('hidden')) { editLinkModal.classList.add('hidden'); return; }
             if (!confirmationModal.classList.contains('hidden')) {
@@ -1001,6 +1037,65 @@
 
         editLinkInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') editLinkSave.click();
+        });
+
+        // ── File preview modal ──────────────────────────────────────────────
+        const filePreviewModal   = document.getElementById('file-preview-modal');
+        const filePreviewTitle   = document.getElementById('file-preview-title');
+        const filePreviewContent = document.getElementById('file-preview-content');
+        const filePreviewOpen    = document.getElementById('file-preview-open');
+        const filePreviewClose   = document.getElementById('file-preview-close');
+
+        function showFilePreview(url, filename, type) {
+            filePreviewTitle.textContent = filename;
+            filePreviewOpen.href = url;
+            filePreviewContent.innerHTML = '';
+
+            if (type === 'image') {
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = filename;
+                img.className = 'max-w-full max-h-full object-contain rounded-xl';
+                filePreviewContent.appendChild(img);
+            } else if (type === 'video') {
+                const vid = document.createElement('video');
+                vid.src = url;
+                vid.controls = true;
+                vid.autoplay = getAutoplay();
+                vid.muted = getAutoplay(); // muted required for autoplay in most browsers
+                vid.className = 'max-w-full max-h-full rounded-xl';
+                filePreviewContent.appendChild(vid);
+            } else {
+                // PDF, text, audio, etc. — use iframe
+                const ext = filename.split('.').pop().toLowerCase();
+                if (['mp3','wav','flac','ogg','aac','m4a','opus'].includes(ext)) {
+                    const audio = document.createElement('audio');
+                    audio.src = url;
+                    audio.controls = true;
+                    audio.className = 'w-full max-w-lg';
+                    filePreviewContent.classList.add('p-8');
+                    filePreviewContent.appendChild(audio);
+                } else {
+                    const frame = document.createElement('iframe');
+                    frame.src = url;
+                    frame.className = 'w-full h-full rounded-xl border-0';
+                    frame.title = filename;
+                    filePreviewContent.appendChild(frame);
+                }
+            }
+
+            filePreviewModal.classList.remove('hidden');
+        }
+
+        function closeFilePreview() {
+            filePreviewModal.classList.add('hidden');
+            filePreviewContent.innerHTML = '';
+            filePreviewContent.classList.remove('p-8');
+        }
+
+        filePreviewClose.addEventListener('click', closeFilePreview);
+        filePreviewModal.addEventListener('click', (e) => {
+            if (e.target === filePreviewModal) closeFilePreview();
         });
 
         // ── Settings modal ──────────────────────────────────────────────────────
@@ -1062,6 +1157,29 @@
                 applyTheme('system');
             }
         });
+
+        // ── Autoplay toggle ───────────────────────────────────────────────────
+        const autoplayToggle = document.getElementById('autoplay-toggle');
+        const autoplayThumb  = document.getElementById('autoplay-thumb');
+
+        function getAutoplay() {
+            return localStorage.getItem('videoAutoplay') !== 'off';
+        }
+
+        function updateAutoplayUI() {
+            const on = getAutoplay();
+            autoplayToggle.classList.toggle('bg-blue', on);
+            autoplayToggle.classList.toggle('bg-surface1', !on);
+            autoplayThumb.style.transform = on ? 'translateX(16px)' : 'translateX(0)';
+        }
+
+        autoplayToggle.addEventListener('click', () => {
+            localStorage.setItem('videoAutoplay', getAutoplay() ? 'off' : 'on');
+            updateAutoplayUI();
+        });
+
+        // Initialise toggle state when settings opens
+        settingsBtn.addEventListener('click', updateAutoplayUI);
 
         // ── Bulk select / delete ─────────────────────────────────────────────
         let selectMode = false;
