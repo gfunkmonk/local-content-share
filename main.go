@@ -127,7 +127,7 @@ func parseCustomDuration(customExpiry string) time.Duration {
 	if err != nil {
 		return 5 * time.Minute
 	}
-	unit := strings.ToLower(matches[2])
+	unit := matches[2]
 	switch unit {
 	case "m": // minutes
 		if value < 5 {
@@ -811,6 +811,11 @@ func main() {
 			http.Error(w, "Invalid path", http.StatusBadRequest)
 			return
 		}
+		ext := strings.ToLower(filepath.Ext(filename))
+		if textPreviewExts[ext] {
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		}
+
 		http.ServeFile(w, r, filePath)
 		log.Printf("Served %s for viewing\n", filename)
 	})
@@ -1119,6 +1124,9 @@ func main() {
 			if err != nil || info.IsDir() {
 				return nil
 			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return nil
+			}
 			rel := filepath.ToSlash(strings.TrimPrefix(path, "data"+string(filepath.Separator)))
 			f, err := zw.Create(rel)
 			if err != nil {
@@ -1165,12 +1173,21 @@ func main() {
 			if f.FileInfo().IsDir() {
 				continue
 			}
-			// Sanitize path — must not escape data dir
-			cleanName := filepath.Clean(f.Name)
-			if strings.Contains(cleanName, "..") {
+			// Sanitize path — only allow known app data targets under data/
+			cleanPath := filepath.Clean(filepath.FromSlash(f.Name))
+			if !filepath.IsLocal(cleanPath) || strings.Contains(cleanPath, "..") {
 				continue
 			}
-			destPath := filepath.Join("data", cleanName)
+			cleanName := filepath.ToSlash(cleanPath)
+			switch {
+			case cleanName == "links.file", cleanName == "expirations.json":
+			case strings.HasPrefix(cleanName, "files/"),
+				strings.HasPrefix(cleanName, "text/"),
+				strings.HasPrefix(cleanName, "notepad/"):
+			default:
+				continue
+			}
+			destPath := filepath.Join("data", filepath.FromSlash(cleanName))
 			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 				continue
 			}
@@ -1178,9 +1195,14 @@ func main() {
 			if err != nil {
 				continue
 			}
-			data, _ := io.ReadAll(rc)
+			data, readErr := io.ReadAll(rc)
 			rc.Close()
-			os.WriteFile(destPath, data, 0644)
+			if readErr != nil {
+				continue
+			}
+			if err := os.WriteFile(destPath, data, 0644); err != nil {
+				continue
+			}
 		}
 		// Reload expiration tracker after import
 		expirationTracker.Reload()
@@ -1195,26 +1217,25 @@ func main() {
 }
 
 // Extension sets used to classify uploaded files. Centralised here (instead
-// of repeating extension lists in each is*File function) so a duplicate or
-// missing entry only has to be fixed once. Go itself rejects duplicate keys
-// in a map literal at compile time, unlike duplicate case labels in a
-// switch, which is what let ".xml" get listed twice in isViewableFile below
-// before this refactor.
 var imageExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true,
-	".avif": true, ".svg": true, ".bmp": true, ".ico": true,
+	".avif": true, ".svg": true, ".bmp": true, ".ico": true, ".apng": true,
 }
 var videoExts = map[string]bool{
-	".mp4": true, ".webm": true, ".ogg": true, ".mov": true, ".ogv": true, ".mkv": true,
+	".mp4": true, ".webm": true, ".mov": true, ".ogv": true,
 }
 var audioExts = map[string]bool{
 	".mp3": true, ".wav": true, ".flac": true, ".aac": true, ".m4a": true,
+	".ogg": true,
 }
 var textPreviewExts = map[string]bool{
 	".txt": true, ".log": true, ".csv": true, ".md": true, ".json": true,
 	".xml": true, ".html": true, ".htm": true, ".css": true, ".js": true,
 	".ts": true, ".go": true, ".py": true, ".rb": true, ".sh": true,
-	".yaml": true, ".yml": true, ".toml": true,
+	".yaml": true, ".yml": true, ".toml": true, ".rs": true, ".c": true,
+	".cpp": true, ".h": true, ".java": true, ".kt": true, ".swift": true,
+	".php": true, ".cs": true, ".bash": true, ".ps1": true, ".scss": true,
+	".sql": true, ".dockerfile": true, ".ini": true, ".conf": true, ".env": true,
 }
 
 // isImageFile returns true for common web-displayable image extensions.
@@ -1247,8 +1268,15 @@ func fileIcon(filename string) string {
 		return "fa-file-excel"
 	case ext == ".ppt" || ext == ".pptx":
 		return "fa-file-powerpoint"
-	case ext == ".zip" || ext == ".tar" || ext == ".gz" || ext == ".bz2" || ext == ".xz" || ext == ".7z" || ext == ".rar":
+	case ext == ".zip" || ext == ".tar" || ext == ".gz" || ext == ".bz2" || ext == ".xz" || ext == ".7z" ||
+		ext == ".rar" || ext == ".lz" || ext == ".zst" || ext == ".cab" || ext == ".Z" || ext == ".lzma" ||
+		ext == ".lz" || ext == ".lz4" || ext == ".lzo" || ext == ".z":
 		return "fa-file-zipper"
+	case ext == ".iso" || ext == ".img" || ext == ".ima" || ext == ".dmg" || ext == ".cpio" || ext == ".vhd" ||
+		ext == ".vmdk" || ext == ".vdi" || ext == ".dsk" || ext == ".toast" || ext == ".vhdx" || ext == ".disk" ||
+		ext == ".qcow" || ext == ".qcow2" || ext == ".hfs" || ext == ".hfv" || ext == ".raw" || ext == ".apfs" ||
+		ext == ".cdr":
+		return "fa-compact-disc"
 	case ext == ".go" || ext == ".py" || ext == ".js" || ext == ".ts" || ext == ".rb" || ext == ".rs" ||
 		ext == ".c" || ext == ".cpp" || ext == ".h" || ext == ".java" || ext == ".kt" || ext == ".swift" ||
 		ext == ".php" || ext == ".cs" || ext == ".sh" || ext == ".bash" || ext == ".ps1" || ext == ".html" ||
@@ -1257,9 +1285,10 @@ func fileIcon(filename string) string {
 		return "fa-file-code"
 	case ext == ".txt" || ext == ".log" || ext == ".csv" || ext == ".ini" || ext == ".conf" || ext == ".env":
 		return "fa-file-lines"
-	case audioExts[ext]:
+	case audioExts[ext] || ext == ".aif" || ext == ".wma":
 		return "fa-file-audio"
-	case videoExts[ext] || ext == ".avi" || ext == ".flv":
+	case videoExts[ext] || ext == ".avi" || ext == ".flv" || ext == ".mpg" || ext == ".mpeg" || ext == ".wmv" ||
+		ext == ".mkv":
 		return "fa-file-video"
 	case ext == ".ttf" || ext == ".otf" || ext == ".woff" || ext == ".woff2":
 		return "fa-file-alt"
